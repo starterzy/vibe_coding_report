@@ -152,12 +152,11 @@ async def update_record(
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
 
-    if record.submitter_id != current_user.id and current_user.roles != RoleEnum.ADMIN:
-        raise HTTPException(status_code=403, detail="Cannot modify this record")
+    user_role = current_user.roles.value if hasattr(current_user.roles, 'value') else str(current_user.roles)
 
-    # 草稿才能修改
-    if record.status != StatusEnum.DRAFT and record.status.value != "draft":
-        raise HTTPException(status_code=400, detail="Only draft records can be modified")
+    # 草稿可以修改，审批者也可以修改已提交的记录
+    if record.status.value != StatusEnum.DRAFT.value and user_role not in ('approver', 'admin'):
+        raise HTTPException(status_code=400, detail="Only draft records or approvers can modify")
 
     if update_data.current_content is not None:
         record.current_content = update_data.current_content

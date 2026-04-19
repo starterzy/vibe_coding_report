@@ -43,6 +43,7 @@
             type="textarea"
             rows="2"
             placeholder="请输入"
+            @change="row._modified = true"
           />
         </template>
       </el-table-column>
@@ -55,6 +56,7 @@
             type="textarea"
             rows="2"
             placeholder="请输入"
+            @change="row._modified = true"
           />
         </template>
       </el-table-column>
@@ -116,6 +118,15 @@ async function fetchRecords() {
 
 async function approveRecord(row) {
   try {
+    // 如果有修改，先保存再审核
+    if (row._modified) {
+      await reportApi.updateRecord(row.id, {
+        current_content: row.current_content,
+        next_plan: row.next_plan,
+        current_progress: row.current_progress
+      })
+      row._modified = false
+    }
     await reportApi.approveRecord(row.id)
     ElMessage.success('审核通过')
     fetchRecords()
