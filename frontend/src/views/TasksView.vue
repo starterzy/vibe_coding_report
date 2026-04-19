@@ -26,74 +26,77 @@
       stripe
       border
       height="calc(100vh - 220px)"
-      :span-method="spanMethod"
     >
-      <el-table-column prop="sequence" label="序号" width="60" />
-      <el-table-column prop="taskName" label="重点工作" width="120" show-overflow-tooltip />
-      <el-table-column prop="target" label="主要目标任务" min-width="300" show-overflow-tooltip />
-      <el-table-column prop="leader" label="牵头领导" width="100" show-overflow-tooltip />
-      <el-table-column prop="departmentName" label="牵头部门" width="150" show-overflow-tooltip />
-      <el-table-column prop="partnerDepts" label="配合部门" width="120" show-overflow-tooltip />
-      <el-table-column prop="deadline" label="完成时间" width="80" />
-      <el-table-column prop="measureContent" label="年度工作措施" min-width="350" show-overflow-tooltip />
-      <el-table-column prop="personLiable" label="责任人" width="100" />
-      <el-table-column prop="specificMeasures" label="具体举措" width="150" />
-      <el-table-column label="本月工作内容" min-width="200">
-        <template #default="{ row }">
-          <span v-if="row.status && row.status !== 'draft'">{{ row.currentContent || '-' }}</span>
-          <el-input
-            v-else
-            v-model="row.currentContent"
-            type="textarea"
-            rows="2"
-            placeholder="请输入"
-          />
-        </template>
+      <el-table-column prop="sequence" label="序号" width="60" fixed />
+      <el-table-column label="任务信息" fixed>
+        <el-table-column prop="taskName" label="重点工作" min-width="120" />
+        <el-table-column prop="target" label="主要目标任务" min-width="300" />
+        <el-table-column prop="leader" label="牵头领导" min-width="100" />
+        <el-table-column prop="departmentName" label="牵头部门" min-width="150" />
+        <el-table-column prop="partnerDepts" label="配合部门" min-width="120" />
+        <el-table-column prop="deadline" label="完成时间" min-width="80" />
+        <el-table-column prop="measureContent" label="年度工作措施" min-width="350" />
+        <el-table-column prop="personLiable" label="责任人" min-width="100" />
+        <el-table-column prop="specificMeasures" label="具体举措" min-width="150" />
       </el-table-column>
-      <el-table-column label="下月工作计划" min-width="200">
-        <template #default="{ row }">
-          <span v-if="row.status && row.status !== 'draft'">{{ row.nextPlan || '-' }}</span>
-          <el-input
-            v-else
-            v-model="row.nextPlan"
-            type="textarea"
-            rows="2"
-            placeholder="请输入"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="完成进度" width="120">
-        <template #default="{ row }">
-          <span v-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
-          <el-input-number
-            v-else
-            v-model="row.currentProgress"
-            :min="0"
-            :max="100"
-            size="small"
-            controls-position="right"
-            style="width: 100%"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="80">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <template v-if="!row.status || row.status === 'draft'">
-            <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
-            <el-button type="success" size="small" @click="submitRow(row)">提交</el-button>
+      <el-table-column label="填报信息">
+        <el-table-column label="本月工作内容" min-width="200">
+          <template #default="{ row }">
+            <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
+            <el-input
+              v-else
+              v-model="row.currentContent"
+              type="textarea"
+              rows="2"
+              placeholder="请输入"
+            />
           </template>
-          <template v-else-if="row.status === 'submitted'">
-            <span style="color: #909399; font-size: 12px">待审批</span>
+        </el-table-column>
+        <el-table-column label="下月工作计划" min-width="200">
+          <template #default="{ row }">
+            <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
+            <el-input
+              v-else
+              v-model="row.nextPlan"
+              type="textarea"
+              rows="2"
+              placeholder="请输入"
+            />
           </template>
-          <template v-else>
-            <span style="color: #67c23a; font-size: 12px">已审核</span>
+        </el-table-column>
+        <el-table-column label="完成进度" width="120">
+          <template #default="{ row }">
+            <span v-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
+            <el-input-number
+              v-else
+              v-model="row.currentProgress"
+              :min="0"
+              :max="100"
+              size="small"
+              controls-position="right"
+              style="width: 100%"
+            />
           </template>
-        </template>
+        </el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="160">
+          <template #default="{ row }">
+            <template v-if="!row.status || row.status === 'draft'">
+              <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
+              <el-button type="success" size="small" @click="submitRow(row)">提交</el-button>
+            </template>
+            <template v-else-if="row.status === 'submitted'">
+              <span style="color: #909399; font-size: 12px">待审批</span>
+            </template>
+            <template v-else>
+              <span style="color: #67c23a; font-size: 12px">已审核</span>
+            </template>
+          </template>
+        </el-table-column>
       </el-table-column>
     </el-table>
   </div>
@@ -125,8 +128,8 @@ const tableData = computed(() => {
         deadline: task.deadline,
         measureId: measure.id,
         measureContent: measure.content,
-        personLiable: '',  // 暂时为空
-        specificMeasures: '',  // 暂时为空
+        personLiable: '',
+        specificMeasures: '',
         recordId: record?.id,
         currentContent: record?.current_content || record?.currentContent || '',
         nextPlan: record?.next_plan || record?.nextPlan || '',
@@ -152,22 +155,6 @@ const filteredTasks = computed(() => {
   }
   return data
 })
-
-// 合并序号、重点工作、主要目标任务列
-const spanMethod = ({ row, columnIndex }) => {
-  // columnIndex: 0=序号, 1=重点工作, 2=目标任务, 3=牵头领导...
-  if (columnIndex === 0 || columnIndex === 1 || columnIndex === 2) {
-    const sameSeqRows = tableData.value.filter(r => r.sequence === row.sequence)
-    const firstIdx = tableData.value.indexOf(sameSeqRows[0])
-    const currentIdx = tableData.value.indexOf(row)
-    const rowSpan = sameSeqRows.length
-
-    if (currentIdx === firstIdx) {
-      return { rowspan: rowSpan, colspan: 1 }
-    }
-    return { rowspan: 0, colspan: 1 }
-  }
-}
 
 function statusType(status) {
   const map = { draft: 'info', submitted: 'warning', approved: 'success' }
@@ -261,5 +248,20 @@ onMounted(fetchData)
 }
 .search-form {
   margin-bottom: 15px;
+}
+.cell-text {
+  word-break: break-word;
+  white-space: normal;
+}
+</style>
+
+<style>
+/* 全局样式确保单元格内容换行 */
+.el-table .cell {
+  word-break: break-word !important;
+  white-space: normal !important;
+}
+.el-table td {
+  vertical-align: top;
 }
 </style>
