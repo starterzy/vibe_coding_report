@@ -161,6 +161,10 @@ async def update_record(
     if record.submitter_id != current_user.id and current_user.roles != RoleEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Cannot modify this record")
 
+    # 草稿才能修改
+    if record.status != StatusEnum.DRAFT and record.status.value != "draft":
+        raise HTTPException(status_code=400, detail="Only draft records can be modified")
+
     if update_data.current_content is not None:
         record.current_content = update_data.current_content
     if update_data.next_plan is not None:

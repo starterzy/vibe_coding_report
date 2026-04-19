@@ -26,17 +26,18 @@
       stripe
       border
       height="calc(100vh - 220px)"
-      scroll-x
-      :show-summary="false"
+      :span-method="spanMethod"
     >
-      <el-table-column prop="sequence" label="序号" width="60" fixed />
-      <el-table-column prop="taskName" label="重点工作" width="120" fixed show-overflow-tooltip />
-      <el-table-column prop="target" label="主要目标任务" min-width="300" fixed show-overflow-tooltip />
+      <el-table-column prop="sequence" label="序号" width="60" />
+      <el-table-column prop="taskName" label="重点工作" width="120" show-overflow-tooltip />
+      <el-table-column prop="target" label="主要目标任务" min-width="300" show-overflow-tooltip />
       <el-table-column prop="leader" label="牵头领导" width="100" show-overflow-tooltip />
       <el-table-column prop="departmentName" label="牵头部门" width="150" show-overflow-tooltip />
       <el-table-column prop="partnerDepts" label="配合部门" width="120" show-overflow-tooltip />
       <el-table-column prop="deadline" label="完成时间" width="80" />
       <el-table-column prop="measureContent" label="年度工作措施" min-width="350" show-overflow-tooltip />
+      <el-table-column prop="personLiable" label="责任人" width="100" />
+      <el-table-column prop="specificMeasures" label="具体举措" width="150" />
       <el-table-column label="本月工作内容" min-width="200">
         <template #default="{ row }">
           <span v-if="row.status && row.status !== 'draft'">{{ row.currentContent || '-' }}</span>
@@ -124,6 +125,8 @@ const tableData = computed(() => {
         deadline: task.deadline,
         measureId: measure.id,
         measureContent: measure.content,
+        personLiable: '',  // 暂时为空
+        specificMeasures: '',  // 暂时为空
         recordId: record?.id,
         currentContent: record?.current_content || record?.currentContent || '',
         nextPlan: record?.next_plan || record?.nextPlan || '',
@@ -149,6 +152,22 @@ const filteredTasks = computed(() => {
   }
   return data
 })
+
+// 合并序号、重点工作、主要目标任务列
+const spanMethod = ({ row, columnIndex }) => {
+  // columnIndex: 0=序号, 1=重点工作, 2=目标任务, 3=牵头领导...
+  if (columnIndex === 0 || columnIndex === 1 || columnIndex === 2) {
+    const sameSeqRows = tableData.value.filter(r => r.sequence === row.sequence)
+    const firstIdx = tableData.value.indexOf(sameSeqRows[0])
+    const currentIdx = tableData.value.indexOf(row)
+    const rowSpan = sameSeqRows.length
+
+    if (currentIdx === firstIdx) {
+      return { rowspan: rowSpan, colspan: 1 }
+    }
+    return { rowspan: 0, colspan: 1 }
+  }
+}
 
 function statusType(status) {
   const map = { draft: 'info', submitted: 'warning', approved: 'success' }
