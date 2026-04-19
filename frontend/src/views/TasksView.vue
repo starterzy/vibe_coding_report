@@ -26,95 +26,92 @@
       stripe
       border
       height="calc(100vh - 220px)"
+      :span-method="spanMethod"
     >
-      <el-table-column prop="sequence" label="序号" width="60" align="center" fixed />
-      <el-table-column label="任务信息" fixed>
-        <el-table-column prop="taskName" label="重点工作" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="target" label="主要目标任务" min-width="350" show-overflow-tooltip />
-        <el-table-column label="牵头领导" min-width="120">
-          <template #default="{ row }">
-            <div class="line-break">{{ row.leader }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="牵头部门" min-width="180">
-          <template #default="{ row }">
-            <div class="line-break">{{ row.departmentName }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="配合部门" min-width="150">
-          <template #default="{ row }">
-            <div class="line-break">{{ row.partnerDepts }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="deadline" label="完成时间" min-width="80" align="center" />
-        <el-table-column prop="measureContent" label="年度工作措施" min-width="350" show-overflow-tooltip />
-        <el-table-column label="责任人" min-width="120">
-          <template #default="{ row }">
-            <div class="line-break">{{ row.personLiable || '-' }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="specificMeasures" label="具体举措" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="sequence" label="序号" width="60" align="center" />
+      <el-table-column prop="taskName" label="重点工作" width="120" show-overflow-tooltip />
+      <el-table-column prop="target" label="主要目标任务" min-width="350" show-overflow-tooltip />
+      <el-table-column label="牵头领导" min-width="120">
+        <template #default="{ row }">
+          <div class="line-break">{{ row.leader }}</div>
+        </template>
       </el-table-column>
-      <el-table-column label="填报信息">
-        <el-table-column label="本月工作内容" min-width="200">
-          <template #default="{ row }">
-            <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
-            <el-input
-              v-else
-              v-model="row.currentContent"
-              type="textarea"
-              rows="2"
-              placeholder="请输入"
-              class="fill-input"
-            />
+      <el-table-column label="牵头部门" min-width="180">
+        <template #default="{ row }">
+          <div class="line-break">{{ row.departmentName }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="配合部门" min-width="150">
+        <template #default="{ row }">
+          <div class="line-break">{{ row.partnerDepts }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="deadline" label="完成时间" width="80" align="center" />
+      <el-table-column prop="measureContent" label="年度工作措施" min-width="350" show-overflow-tooltip />
+      <el-table-column label="责任人" min-width="120">
+        <template #default="{ row }">
+          <div class="line-break">{{ row.personLiable || '-' }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="specificMeasures" label="具体举措" min-width="150" show-overflow-tooltip />
+      <el-table-column label="本月工作内容" min-width="200">
+        <template #default="{ row }">
+          <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
+          <el-input
+            v-else
+            v-model="row.currentContent"
+            type="textarea"
+            rows="2"
+            placeholder="请输入"
+            class="fill-input"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="下月工作计划" min-width="200">
+        <template #default="{ row }">
+          <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
+          <el-input
+            v-else
+            v-model="row.nextPlan"
+            type="textarea"
+            rows="2"
+            placeholder="请输入"
+            class="fill-input"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="完成进度" width="100" align="center">
+        <template #default="{ row }">
+          <span v-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
+          <el-input-number
+            v-else
+            v-model="row.currentProgress"
+            :min="0"
+            :max="100"
+            size="small"
+            controls-position="right"
+            style="width: 80px"
+          />
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="160" align="center">
+        <template #default="{ row }">
+          <template v-if="!row.status || row.status === 'draft'">
+            <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
+            <el-button type="success" size="small" @click="submitRow(row)">提交</el-button>
           </template>
-        </el-table-column>
-        <el-table-column label="下月工作计划" min-width="200">
-          <template #default="{ row }">
-            <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
-            <el-input
-              v-else
-              v-model="row.nextPlan"
-              type="textarea"
-              rows="2"
-              placeholder="请输入"
-              class="fill-input"
-            />
+          <template v-else-if="row.status === 'submitted'">
+            <span style="color: #909399; font-size: 12px">待审批</span>
           </template>
-        </el-table-column>
-        <el-table-column label="完成进度" width="100" align="center">
-          <template #default="{ row }">
-            <span v-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
-            <el-input-number
-              v-else
-              v-model="row.currentProgress"
-              :min="0"
-              :max="100"
-              size="small"
-              controls-position="right"
-              style="width: 80px"
-            />
+          <template v-else>
+            <span style="color: #67c23a; font-size: 12px">已审核</span>
           </template>
-        </el-table-column>
-        <el-table-column label="状态" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" align="center">
-          <template #default="{ row }">
-            <template v-if="!row.status || row.status === 'draft'">
-              <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
-              <el-button type="success" size="small" @click="submitRow(row)">提交</el-button>
-            </template>
-            <template v-else-if="row.status === 'submitted'">
-              <span style="color: #909399; font-size: 12px">待审批</span>
-            </template>
-            <template v-else>
-              <span style="color: #67c23a; font-size: 12px">已审核</span>
-            </template>
-          </template>
-        </el-table-column>
+        </template>
       </el-table-column>
     </el-table>
   </div>
@@ -173,6 +170,23 @@ const filteredTasks = computed(() => {
   }
   return data
 })
+
+// 按主要目标任务合并
+const spanMethod = ({ row, columnIndex }) => {
+  // 需要合并的列: 序号(0), 重点工作(1), 主要目标任务(2), 牵头领导(3), 牵头部门(4), 配合部门(5)
+  if (columnIndex <= 5) {
+    // 找到同一target的第一行
+    const sameTargetRows = filteredTasks.value.filter(r => r.target === row.target)
+    const firstIdx = filteredTasks.value.indexOf(sameTargetRows[0])
+    const currentIdx = filteredTasks.value.indexOf(row)
+    const rowSpan = sameTargetRows.length
+
+    if (currentIdx === firstIdx) {
+      return { rowspan: rowSpan, colspan: 1 }
+    }
+    return { rowspan: 0, colspan: 1 }
+  }
+}
 
 function statusType(status) {
   const map = { draft: 'info', submitted: 'warning', approved: 'success' }
@@ -287,8 +301,5 @@ onMounted(fetchData)
 }
 .el-table td {
   vertical-align: top;
-}
-.el-table .el-table__header th {
-  background-color: #f5f7fa;
 }
 </style>
