@@ -29,7 +29,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(200), nullable=False)
-    roles = Column(SQLEnum(RoleEnum), default=RoleEnum.FILLER)
+    roles = Column(SQLEnum(RoleEnum, values_callable=lambda x: [e.value for e in x]), default=RoleEnum.FILLER)
     user_departments = relationship("UserDepartment", back_populates="user")
     submitted_records = relationship("ReportRecord", back_populates="submitter", foreign_keys="ReportRecord.submitter_id")
     reviewed_records = relationship("ReportRecord", back_populates="reviewer", foreign_keys="ReportRecord.reviewer_id")
@@ -70,11 +70,11 @@ class ReportRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     measure_id = Column(Integer, ForeignKey("measures.id"), nullable=False)
     submitter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    month = Column(Integer, nullable=False)        # 填报月份 1-12
-    year = Column(Integer, default=2026)
+    month = Column(String(7), nullable=False)        # 填报月份 YYYY-MM
     current_content = Column(Text)                 # 本月工作内容
     next_plan = Column(Text)                       # 下月工作计划
-    status = Column(SQLEnum(StatusEnum), default=StatusEnum.DRAFT)
+    current_progress = Column(Integer, default=0)  # 当前措施完成百分比 0-100
+    status = Column(SQLEnum(StatusEnum, values_callable=lambda x: [e.value for e in x]), default=StatusEnum.DRAFT)
     submitted_at = Column(DateTime, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True)

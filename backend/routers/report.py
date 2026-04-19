@@ -5,7 +5,7 @@ from datetime import datetime
 from backend.models import get_db, User, Task, Measure, ReportRecord, Department, RoleEnum, StatusEnum
 from backend.models.schemas import (
     TaskResponse, MeasureResponse, ReportRecordCreate, ReportRecordUpdate,
-    ReportRecordResponse, TaskWithReportStatus
+    ReportRecordResponse
 )
 from backend.services.auth_service import get_current_user
 
@@ -26,7 +26,6 @@ def task_to_response(task: Task) -> TaskResponse:
             MeasureResponse(
                 id=m.id,
                 content=m.content,
-                person_liable=m.person_liable or "",
                 task_id=m.task_id
             ) for m in task.measures
         ]
@@ -50,8 +49,7 @@ async def get_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.get("/records", response_model=list[ReportRecordResponse])
 async def get_records(
-    month: Optional[int] = None,
-    year: int = Query(2026),
+    month: Optional[str] = None,  # YYYY-MM格式
     status_filter: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -62,10 +60,7 @@ async def get_records(
 
     # 权限控制：管理能看到所有已审核的，审批者能看到提交给他的，填报者只能看自己的
     if current_user.roles == RoleEnum.ADMIN:
-        if status_filter:
-            query = query.filter(ReportRecord.status == StatusEnum.APPROVED)
-        else:
-            query = query.filter(ReportRecord.status == StatusEnum.APPROVED)
+        query = query.filter(ReportRecord.status == StatusEnum.APPROVED)
     elif current_user.roles == RoleEnum.APPROVER:
         query = query.join(Measure).join(Task).join(Department).join(UserDepartment).filter(
             UserDepartment.user_id == current_user.id
@@ -79,7 +74,6 @@ async def get_records(
 
     if month:
         query = query.filter(ReportRecord.month == month)
-    query = query.filter(ReportRecord.year == year)
 
     records = query.all()
     result = []
@@ -90,16 +84,17 @@ async def get_records(
             submitter_id=r.submitter_id,
             submitter_name=r.submitter.username,
             month=r.month,
-            year=r.year,
             current_content=r.current_content,
             next_plan=r.next_plan,
+            current_progress=r.current_progress or 0,
             status=r.status.value,
             submitted_at=r.submitted_at,
             reviewed_at=r.reviewed_at,
             reviewer_id=r.reviewer_id,
             reviewer_name=r.reviewer.username if r.reviewer else None,
             measure_content=r.measure.content,
-            task_name=r.measure.task.name
+            task_name=r.measure.task.name,
+            task_sequence=r.measure.task.sequence
         ))
     return result
 
@@ -109,7 +104,6 @@ async def create_record(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # 验证措施存在
     measure = db.query(Measure).filter(Measure.id == record.measure_id).first()
     if not measure:
         raise HTTPException(status_code=404, detail="Measure not found")
@@ -117,8 +111,7 @@ async def create_record(
     # 检查是否已存在当月记录
     existing = db.query(ReportRecord).filter(
         ReportRecord.measure_id == record.measure_id,
-        ReportRecord.month == record.month,
-        ReportRecord.year == record.year
+        ReportRecord.month == record.month
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Record already exists for this month")
@@ -127,9 +120,9 @@ async def create_record(
         measure_id=record.measure_id,
         submitter_id=current_user.id,
         month=record.month,
-        year=record.year,
         current_content=record.current_content,
         next_plan=record.next_plan,
+        current_progress=record.current_progress or 0,
         status=StatusEnum.DRAFT
     )
     db.add(new_record)
@@ -141,16 +134,17 @@ async def create_record(
         submitter_id=new_record.submitter_id,
         submitter_name=current_user.username,
         month=new_record.month,
-        year=new_record.year,
         current_content=new_record.current_content,
         next_plan=new_record.next_plan,
+        current_progress=new_record.current_progress or 0,
         status=new_record.status.value,
         submitted_at=new_record.submitted_at,
         reviewed_at=new_record.reviewed_at,
         reviewer_id=new_record.reviewer_id,
         reviewer_name=None,
         measure_content=measure.content,
-        task_name=measure.task.name
+        task_name=measure.task.name,
+        task_sequence=measure.task.sequence
     )
 
 @router.put("/records/{record_id}", response_model=ReportRecordResponse)
@@ -164,7 +158,6 @@ async def update_record(
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
 
-    # 只有填报者可以修改自己的草稿
     if record.submitter_id != current_user.id and current_user.roles != RoleEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Cannot modify this record")
 
@@ -172,6 +165,8 @@ async def update_record(
         record.current_content = update_data.current_content
     if update_data.next_plan is not None:
         record.next_plan = update_data.next_plan
+    if update_data.current_progress is not None:
+        record.current_progress = update_data.current_progress
     if update_data.status == StatusEnum.SUBMITTED and record.status == StatusEnum.DRAFT:
         record.status = StatusEnum.SUBMITTED
         record.submitted_at = datetime.utcnow()
@@ -188,16 +183,17 @@ async def update_record(
         submitter_id=record.submitter_id,
         submitter_name=record.submitter.username,
         month=record.month,
-        year=record.year,
         current_content=record.current_content,
         next_plan=record.next_plan,
+        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,
         reviewer_id=record.reviewer_id,
         reviewer_name=record.reviewer.username if record.reviewer else None,
         measure_content=record.measure.content,
-        task_name=record.measure.task.name
+        task_name=record.measure.task.name,
+        task_sequence=record.measure.task.sequence
     )
 
 @router.post("/records/{record_id}/submit", response_model=ReportRecordResponse)
@@ -220,18 +216,19 @@ async def submit_record(
         id=record.id,
         measure_id=record.measure_id,
         submitter_id=record.submitter_id,
-        submitter_name=record.submitter.username,
+        submitter_name=current_user.username,
         month=record.month,
-        year=record.year,
         current_content=record.current_content,
         next_plan=record.next_plan,
+        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,
         reviewer_id=record.reviewer_id,
         reviewer_name=None,
         measure_content=record.measure.content,
-        task_name=record.measure.task.name
+        task_name=record.measure.task.name,
+        task_sequence=record.measure.task.sequence
     )
 
 @router.post("/records/{record_id}/approve", response_model=ReportRecordResponse)
@@ -260,14 +257,15 @@ async def approve_record(
         submitter_id=record.submitter_id,
         submitter_name=record.submitter.username,
         month=record.month,
-        year=record.year,
         current_content=record.current_content,
         next_plan=record.next_plan,
+        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,
         reviewer_id=record.reviewer_id,
         reviewer_name=current_user.username,
         measure_content=record.measure.content,
-        task_name=record.measure.task.name
+        task_name=record.measure.task.name,
+        task_sequence=record.measure.task.sequence
     )

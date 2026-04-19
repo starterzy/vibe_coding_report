@@ -55,7 +55,6 @@ class LoginResponse(BaseModel):
 class MeasureResponse(BaseModel):
     id: int
     content: str
-    person_liable: str
     task_id: int
     class Config:
         from_attributes = True
@@ -76,9 +75,10 @@ class TaskResponse(BaseModel):
 # 填报记录
 class ReportRecordBase(BaseModel):
     measure_id: int
-    month: int
+    month: str  # YYYY-MM格式
     current_content: Optional[str] = None
     next_plan: Optional[str] = None
+    current_progress: Optional[int] = 0  # 完成百分比 0-100
 
 class ReportRecordCreate(ReportRecordBase):
     pass
@@ -86,6 +86,7 @@ class ReportRecordCreate(ReportRecordBase):
 class ReportRecordUpdate(BaseModel):
     current_content: Optional[str] = None
     next_plan: Optional[str] = None
+    current_progress: Optional[int] = None
     status: Optional[StatusEnum] = None
 
 class ReportRecordResponse(ReportRecordBase):
@@ -99,6 +100,7 @@ class ReportRecordResponse(ReportRecordBase):
     reviewer_name: Optional[str] = None
     measure_content: str
     task_name: str
+    task_sequence: int
     class Config:
         from_attributes = True
 
