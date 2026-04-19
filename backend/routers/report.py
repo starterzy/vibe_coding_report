@@ -273,7 +273,6 @@ async def approve_record(
 @router.post("/records/{record_id}/reject", response_model=ReportRecordResponse)
 async def reject_record(
     record_id: int,
-    body: RejectRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -287,10 +286,9 @@ async def reject_record(
     if record.status.value != StatusEnum.SUBMITTED.value:
         raise HTTPException(status_code=400, detail="Can only reject submitted records")
 
-    record.status = StatusEnum.REJECTED
-    record.reviewed_at = datetime.utcnow()
-    record.reviewer_id = current_user.id
-    record.reject_reason = body.reason
+    # 退回后恢复为草稿状态
+    record.status = StatusEnum.DRAFT
+    record.submitted_at = None
     db.commit()
     db.refresh(record)
     return ReportRecordResponse(

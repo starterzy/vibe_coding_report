@@ -17,7 +17,6 @@
           <el-option label="全部" value="" />
           <el-option label="已提交" value="submitted" />
           <el-option label="已审核" value="approved" />
-          <el-option label="已退回" value="rejected" />
         </el-select>
       </el-form-item>
     </el-form>
@@ -64,7 +63,7 @@
           {{ row.submitted_at ? new Date(row.submitted_at).toLocaleString() : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right" align="center">
+      <el-table-column label="操作" width="180" fixed="right" align="center">
         <template #default="{ row }">
           <template v-if="row.status === 'submitted'">
             <el-button type="success" size="small" @click="approveRecord(row)">通过</el-button>
@@ -75,24 +74,12 @@
             <br />
             <span style="font-size: 12px; color: #999">审核人: {{ row.reviewer_name }}</span>
           </template>
-          <template v-else-if="row.status === 'rejected'">
-            <span style="color: #f56c6c">已退回</span>
+          <template v-else>
+            <span style="color: #909399">已退回</span>
           </template>
         </template>
       </el-table-column>
     </el-table>
-
-    <el-dialog v-model="rejectDialogVisible" title="退回记录" width="400px">
-      <el-form>
-        <el-form-item label="退回原因">
-          <el-input v-model="rejectReason" type="textarea" rows="3" placeholder="请输入退回原因" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmReject">确认退回</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -104,9 +91,6 @@ import { ElMessage } from 'element-plus'
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const statusFilter = ref('')
 const records = ref([])
-const rejectDialogVisible = ref(false)
-const rejectReason = ref('')
-const currentRejectRow = ref(null)
 
 function statusType(status) {
   const map = { draft: 'info', submitted: 'warning', approved: 'success', rejected: 'danger' }
@@ -140,21 +124,10 @@ async function approveRecord(row) {
   }
 }
 
-function rejectRecord(row) {
-  currentRejectRow.value = row
-  rejectReason.value = ''
-  rejectDialogVisible.value = true
-}
-
-async function confirmReject() {
-  if (!rejectReason.value.trim()) {
-    ElMessage.warning('请输入退回原因')
-    return
-  }
+async function rejectRecord(row) {
   try {
-    await reportApi.rejectRecord(currentRejectRow.value.id, { reason: rejectReason.value })
+    await reportApi.rejectRecord(row.id)
     ElMessage.success('已退回')
-    rejectDialogVisible.value = false
     fetchRecords()
   } catch (e) {
     ElMessage.error('退回失败：' + (e.response?.data?.detail || e.message))

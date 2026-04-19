@@ -25,8 +25,8 @@ export const reportApi = {
     return api.post(`/api/report/records/${id}/approve`)
   },
 
-  rejectRecord(id, data) {
-    return api.post(`/api/report/records/${id}/reject`, data)
+  rejectRecord(id) {
+    return api.post(`/api/report/records/${id}/reject`)
   },
 
   getDepartments() {
