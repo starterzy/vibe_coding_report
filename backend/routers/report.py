@@ -60,7 +60,7 @@ async def get_records(
 
     # 权限控制：管理能看到所有已审核的，审批者能看到提交给他的，填报者只能看自己的
     if current_user.roles == RoleEnum.ADMIN:
-        query = query.filter(ReportRecord.status == StatusEnum.APPROVED)
+        pass  # admin能看到所有记录
     elif current_user.roles == RoleEnum.APPROVER:
         query = query.join(Measure).join(Task).join(Department).join(UserDepartment).filter(
             UserDepartment.user_id == current_user.id
