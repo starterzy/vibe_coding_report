@@ -54,6 +54,7 @@ class Task(Base):
     deadline = Column(String(50))                  # 完成时间
     year = Column(Integer, default=2026)
     measures = relationship("Measure", back_populates="task")
+    department = relationship("Department")
 
 class Measure(Base):
     __tablename__ = "measures"
