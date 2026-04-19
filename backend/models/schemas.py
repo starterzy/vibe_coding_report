@@ -12,6 +12,7 @@ class StatusEnum(str, Enum):
     DRAFT = "draft"
     SUBMITTED = "submitted"
     APPROVED = "approved"
+    REJECTED = "rejected"
 
 # 部门
 class DepartmentBase(BaseModel):

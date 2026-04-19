@@ -235,7 +235,8 @@ async def approve_record(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.roles != RoleEnum.APPROVER:
+    user_role = current_user.roles.value if hasattr(current_user.roles, 'value') else str(current_user.roles)
+    if user_role not in ('approver', 'admin'):
         raise HTTPException(status_code=403, detail="Only approvers can approve records")
 
     record = db.query(ReportRecord).filter(ReportRecord.id == record_id).first()
@@ -276,7 +277,8 @@ async def reject_record(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.roles != RoleEnum.APPROVER:
+    user_role = current_user.roles.value if hasattr(current_user.roles, 'value') else str(current_user.roles)
+    if user_role not in ('approver', 'admin'):
         raise HTTPException(status_code=403, detail="Only approvers can reject records")
 
     record = db.query(ReportRecord).filter(ReportRecord.id == record_id).first()
