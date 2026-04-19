@@ -22,11 +22,6 @@ const routes = [
         component: () => import('../views/TasksView.vue')
       },
       {
-        path: 'fill',
-        name: 'Fill',
-        component: () => import('../views/FillView.vue')
-      },
-      {
         path: 'approve',
         name: 'Approve',
         component: () => import('../views/ApproveView.vue')

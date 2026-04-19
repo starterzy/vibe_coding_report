@@ -13,7 +13,6 @@
         >
           <el-menu-item index="/">首页</el-menu-item>
           <el-menu-item index="/tasks">任务列表</el-menu-item>
-          <el-menu-item index="/fill" v-if="authStore.isFiller || authStore.isAdmin">填报</el-menu-item>
           <el-menu-item index="/approve" v-if="authStore.isApprover || authStore.isAdmin">审批</el-menu-item>
           <el-menu-item index="/admin" v-if="authStore.isAdmin">管理</el-menu-item>
         </el-menu>

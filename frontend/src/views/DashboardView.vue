@@ -5,7 +5,7 @@
       <el-col :span="6">
         <el-card>
           <template #header>任务总数</template>
-          <div style="font-size: 30px; text-align: center">{{ stats.totalTasks }}</div>
+          <div style="font-size: 30px; text-align: center">{{ stats.totalMeasures }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
@@ -57,19 +57,20 @@ const records = ref([])
 
 const stats = computed(() => {
   const totalMeasures = tasks.value.reduce((sum, t) => sum + t.measures.length, 0)
-  const currentMonth = new Date().getMonth() + 1
+  const currentMonth = new Date().toISOString().slice(0, 7)
   const filledThisMonth = records.value.filter(r => r.month === currentMonth && r.status !== 'draft').length
   const pendingApproval = records.value.filter(r => r.status === 'submitted').length
   const approved = records.value.filter(r => r.status === 'approved').length
-  return { totalTasks: tasks.value.length, filledThisMonth, pendingApproval, approved }
+  return { totalMeasures, filledThisMonth, pendingApproval, approved }
 })
 
 const monthlyStats = computed(() => {
-  const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06',
+                  '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12']
   return months.map(m => {
     const monthRecords = records.value.filter(r => r.month === m)
     return {
-      month: `${m}月`,
+      month: m,
       total: tasks.value.reduce((sum, t) => sum + t.measures.length, 0),
       draft: monthRecords.filter(r => r.status === 'draft').length,
       submitted: monthRecords.filter(r => r.status === 'submitted').length,
@@ -81,7 +82,7 @@ const monthlyStats = computed(() => {
 onMounted(async () => {
   try {
     tasks.value = await reportApi.getTasks()
-    records.value = await reportApi.getRecords({ year: 2026 })
+    records.value = await reportApi.getRecords({})
   } catch (e) {
     console.error(e)
   }

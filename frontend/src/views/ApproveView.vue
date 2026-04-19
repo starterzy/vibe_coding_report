@@ -3,9 +3,14 @@
     <h2>审批管理</h2>
     <el-form inline>
       <el-form-item label="月份">
-        <el-select v-model="selectedMonth" @change="fetchRecords">
-          <el-option v-for="m in 12" :key="m" :label="`${m}月`" :value="m" />
-        </el-select>
+        <el-date-picker
+          v-model="selectedMonth"
+          type="month"
+          format="YYYY-MM"
+          value-format="YYYY-MM"
+          placeholder="选择月份"
+          @change="fetchRecords"
+        />
       </el-form-item>
       <el-form-item label="状态">
         <el-select v-model="statusFilter" @change="fetchRecords">
@@ -17,6 +22,7 @@
     </el-form>
 
     <el-table :data="records" stripe border>
+      <el-table-column prop="task_sequence" label="序号" width="60" />
       <el-table-column prop="task_name" label="工作任务" width="150" show-overflow-tooltip />
       <el-table-column prop="measure_content" label="工作措施" min-width="250" show-overflow-tooltip />
       <el-table-column prop="submitter_name" label="填报人" width="100" />
@@ -24,6 +30,9 @@
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
+      </el-table-column>
+      <el-table-column prop="current_progress" label="完成进度" width="100">
+        <template #default="{ row }">{{ row.current_progress || 0 }}%</template>
       </el-table-column>
       <el-table-column prop="current_content" label="本月工作内容" min-width="200" show-overflow-tooltip />
       <el-table-column prop="next_plan" label="下月工作计划" min-width="200" show-overflow-tooltip />
@@ -53,7 +62,7 @@ import { ref, onMounted } from 'vue'
 import { reportApi } from '../api/report'
 import { ElMessage } from 'element-plus'
 
-const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const statusFilter = ref('')
 const records = ref([])
 
@@ -69,7 +78,10 @@ function statusText(status) {
 
 async function fetchRecords() {
   try {
-    const params = { month: selectedMonth.value, year: 2026, status_filter: statusFilter.value }
+    const params = { month: selectedMonth.value }
+    if (statusFilter.value) {
+      params.status_filter = statusFilter.value
+    }
     records.value = await reportApi.getRecords(params)
   } catch (e) {
     console.error(e)
