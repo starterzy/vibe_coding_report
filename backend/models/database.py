@@ -17,6 +17,7 @@ class StatusEnum(enum.Enum):
     DRAFT = "draft"        # 草稿
     SUBMITTED = "submitted"  # 已提交
     APPROVED = "approved"    # 已审核
+    REJECTED = "rejected"   # 已退回
 
 class Department(Base):
     __tablename__ = "departments"
@@ -28,6 +29,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False)
+    phone = Column(String(20), unique=True, nullable=True)  # 手机号，企业微信用户唯一标识
     password_hash = Column(String(200), nullable=False)
     roles = Column(SQLEnum(RoleEnum, values_callable=lambda x: [e.value for e in x]), default=RoleEnum.FILLER)
     user_departments = relationship("UserDepartment", back_populates="user")
@@ -78,6 +80,7 @@ class ReportRecord(Base):
     submitted_at = Column(DateTime, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reject_reason = Column(Text, nullable=True)      # 退回原因
     measure = relationship("Measure", back_populates="report_records")
     submitter = relationship("User", back_populates="submitted_records", foreign_keys=[submitter_id])
     reviewer = relationship("User", back_populates="reviewed_records", foreign_keys=[reviewer_id])

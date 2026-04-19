@@ -89,6 +89,9 @@ class ReportRecordUpdate(BaseModel):
     current_progress: Optional[int] = None
     status: Optional[StatusEnum] = None
 
+class RejectRequest(BaseModel):
+    reason: str  # 退回原因
+
 class ReportRecordResponse(ReportRecordBase):
     id: int
     submitter_id: int
@@ -98,6 +101,7 @@ class ReportRecordResponse(ReportRecordBase):
     reviewed_at: Optional[datetime] = None
     reviewer_id: Optional[int] = None
     reviewer_name: Optional[str] = None
+    reject_reason: Optional[str] = None
     measure_content: str
     task_name: str
     task_sequence: int

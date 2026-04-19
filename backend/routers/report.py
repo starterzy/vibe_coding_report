@@ -5,7 +5,7 @@ from datetime import datetime
 from backend.models import get_db, User, Task, Measure, ReportRecord, Department, RoleEnum, StatusEnum
 from backend.models.schemas import (
     TaskResponse, MeasureResponse, ReportRecordCreate, ReportRecordUpdate,
-    ReportRecordResponse
+    ReportRecordResponse, RejectRequest
 )
 from backend.services.auth_service import get_current_user
 
@@ -58,19 +58,12 @@ async def get_records(
         joinedload(ReportRecord.measure).joinedload(Measure.task)
     )
 
-    # 权限控制：管理能看到所有已审核的，审批者能看到提交给他的，填报者只能看自己的
-    if current_user.roles == RoleEnum.ADMIN:
-        pass  # admin能看到所有记录
-    elif current_user.roles == RoleEnum.APPROVER:
-        query = query.join(Measure).join(Task).join(Department).join(UserDepartment).filter(
-            UserDepartment.user_id == current_user.id
-        )
-        if status_filter:
-            query = query.filter(ReportRecord.status == StatusEnum[status_filter.upper()])
-    else:  # FILLER
+    # 权限控制：管理能看到所有记录，审批者能看到所有记录，填报者只能看自己的
+    if current_user.roles == RoleEnum.FILLER:
         query = query.filter(ReportRecord.submitter_id == current_user.id)
-        if status_filter:
-            query = query.filter(ReportRecord.status == StatusEnum[status_filter.upper()])
+
+    if status_filter:
+        query = query.filter(ReportRecord.status == StatusEnum[status_filter.upper()])
 
     if month:
         query = query.filter(ReportRecord.month == month)
@@ -92,6 +85,7 @@ async def get_records(
             reviewed_at=r.reviewed_at,
             reviewer_id=r.reviewer_id,
             reviewer_name=r.reviewer.username if r.reviewer else None,
+            reject_reason=r.reject_reason,
             measure_content=r.measure.content,
             task_name=r.measure.task.name,
             task_sequence=r.measure.task.sequence
@@ -247,7 +241,7 @@ async def approve_record(
     record = db.query(ReportRecord).filter(ReportRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
-    if record.status != StatusEnum.SUBMITTED:
+    if record.status.value != StatusEnum.SUBMITTED.value:
         raise HTTPException(status_code=400, detail="Can only approve submitted records")
 
     record.status = StatusEnum.APPROVED
@@ -269,6 +263,49 @@ async def approve_record(
         reviewed_at=record.reviewed_at,
         reviewer_id=record.reviewer_id,
         reviewer_name=current_user.username,
+        reject_reason=record.reject_reason,
+        measure_content=record.measure.content,
+        task_name=record.measure.task.name,
+        task_sequence=record.measure.task.sequence
+    )
+
+@router.post("/records/{record_id}/reject", response_model=ReportRecordResponse)
+async def reject_record(
+    record_id: int,
+    body: RejectRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.roles != RoleEnum.APPROVER:
+        raise HTTPException(status_code=403, detail="Only approvers can reject records")
+
+    record = db.query(ReportRecord).filter(ReportRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+    if record.status.value != StatusEnum.SUBMITTED.value:
+        raise HTTPException(status_code=400, detail="Can only reject submitted records")
+
+    record.status = StatusEnum.REJECTED
+    record.reviewed_at = datetime.utcnow()
+    record.reviewer_id = current_user.id
+    record.reject_reason = body.reason
+    db.commit()
+    db.refresh(record)
+    return ReportRecordResponse(
+        id=record.id,
+        measure_id=record.measure_id,
+        submitter_id=record.submitter_id,
+        submitter_name=record.submitter.username,
+        month=record.month,
+        current_content=record.current_content,
+        next_plan=record.next_plan,
+        current_progress=record.current_progress or 0,
+        status=record.status.value,
+        submitted_at=record.submitted_at,
+        reviewed_at=record.reviewed_at,
+        reviewer_id=record.reviewer_id,
+        reviewer_name=current_user.username,
+        reject_reason=record.reject_reason,
         measure_content=record.measure.content,
         task_name=record.measure.task.name,
         task_sequence=record.measure.task.sequence

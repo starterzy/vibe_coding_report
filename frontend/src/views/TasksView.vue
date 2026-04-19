@@ -27,17 +27,33 @@
       border
       height="calc(100vh - 220px)"
     >
-      <el-table-column prop="sequence" label="序号" width="60" fixed />
+      <el-table-column prop="sequence" label="序号" width="60" align="center" fixed />
       <el-table-column label="任务信息" fixed>
-        <el-table-column prop="taskName" label="重点工作" min-width="120" />
-        <el-table-column prop="target" label="主要目标任务" min-width="300" />
-        <el-table-column prop="leader" label="牵头领导" min-width="100" />
-        <el-table-column prop="departmentName" label="牵头部门" min-width="150" />
-        <el-table-column prop="partnerDepts" label="配合部门" min-width="120" />
-        <el-table-column prop="deadline" label="完成时间" min-width="80" />
-        <el-table-column prop="measureContent" label="年度工作措施" min-width="350" />
-        <el-table-column prop="personLiable" label="责任人" min-width="100" />
-        <el-table-column prop="specificMeasures" label="具体举措" min-width="150" />
+        <el-table-column prop="taskName" label="重点工作" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="target" label="主要目标任务" min-width="350" show-overflow-tooltip />
+        <el-table-column label="牵头领导" min-width="120">
+          <template #default="{ row }">
+            <div class="line-break">{{ row.leader }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="牵头部门" min-width="180">
+          <template #default="{ row }">
+            <div class="line-break">{{ row.departmentName }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="配合部门" min-width="150">
+          <template #default="{ row }">
+            <div class="line-break">{{ row.partnerDepts }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="deadline" label="完成时间" min-width="80" align="center" />
+        <el-table-column prop="measureContent" label="年度工作措施" min-width="350" show-overflow-tooltip />
+        <el-table-column label="责任人" min-width="120">
+          <template #default="{ row }">
+            <div class="line-break">{{ row.personLiable || '-' }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="specificMeasures" label="具体举措" min-width="150" show-overflow-tooltip />
       </el-table-column>
       <el-table-column label="填报信息">
         <el-table-column label="本月工作内容" min-width="200">
@@ -49,6 +65,7 @@
               type="textarea"
               rows="2"
               placeholder="请输入"
+              class="fill-input"
             />
           </template>
         </el-table-column>
@@ -61,10 +78,11 @@
               type="textarea"
               rows="2"
               placeholder="请输入"
+              class="fill-input"
             />
           </template>
         </el-table-column>
-        <el-table-column label="完成进度" width="120">
+        <el-table-column label="完成进度" width="100" align="center">
           <template #default="{ row }">
             <span v-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
             <el-input-number
@@ -74,16 +92,16 @@
               :max="100"
               size="small"
               controls-position="right"
-              style="width: 100%"
+              style="width: 80px"
             />
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="80">
+        <el-table-column label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160">
+        <el-table-column label="操作" width="160" align="center">
           <template #default="{ row }">
             <template v-if="!row.status || row.status === 'draft'">
               <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
@@ -122,10 +140,10 @@ const tableData = computed(() => {
         sequence: task.sequence,
         taskName: task.name,
         target: task.target,
-        leader: task.leader,
-        departmentName: task.department_name,
-        partnerDepts: task.partner_depts,
-        deadline: task.deadline,
+        leader: task.leader || '',
+        departmentName: task.department_name || '',
+        partnerDepts: task.partner_depts || '',
+        deadline: task.deadline || '',
         measureId: measure.id,
         measureContent: measure.content,
         personLiable: '',
@@ -249,19 +267,28 @@ onMounted(fetchData)
 .search-form {
   margin-bottom: 15px;
 }
+.line-break {
+  white-space: pre-line;
+  line-height: 1.5;
+}
 .cell-text {
   word-break: break-word;
   white-space: normal;
 }
+.fill-input {
+  width: 100%;
+}
 </style>
 
 <style>
-/* 全局样式确保单元格内容换行 */
 .el-table .cell {
   word-break: break-word !important;
   white-space: normal !important;
 }
 .el-table td {
   vertical-align: top;
+}
+.el-table .el-table__header th {
+  background-color: #f5f7fa;
 }
 </style>
