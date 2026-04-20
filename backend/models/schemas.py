@@ -6,6 +6,7 @@ from enum import Enum
 class RoleEnum(str, Enum):
     FILLER = "filler"
     APPROVER = "approver"
+    LEADER = "leader"
     ADMIN = "admin"
 
 class StatusEnum(str, Enum):
@@ -34,11 +35,13 @@ class UserCreate(UserBase):
     password: str
     roles: List[RoleEnum] = []
     department_ids: List[int] = []
+    approver_sequence_ids: List[int] = []  # 审批者可审批的序号列表
 
 class UserResponse(UserBase):
     id: int
     roles: List[str] = []
     departments: List[str] = []
+    approver_sequences: List[int] = []  # 审批者可审批的序号列表
     class Config:
         from_attributes = True
 

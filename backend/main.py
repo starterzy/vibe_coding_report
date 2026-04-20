@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from backend.models.database import init_db
-from backend.routers import auth, report, department, wework
+from backend.routers import auth, report, department, wework, user
 from backend.services.excel_service import import_excel_to_db, create_default_users
 from pathlib import Path
 
@@ -37,6 +37,7 @@ app.include_router(auth.router)
 app.include_router(report.router)
 app.include_router(department.router)
 app.include_router(wework.router)
+app.include_router(user.router)
 
 @app.get("/")
 def root():

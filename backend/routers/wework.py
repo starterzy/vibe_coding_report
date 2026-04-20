@@ -10,9 +10,9 @@ from backend.services.auth_service import create_access_token
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 # 企业微信SSO配置（需要替换为实际值）
-WEWORK_CORP_ID = "your-corp-id"
-WEWORK_AGENT_ID = "your-agent-id"
-WEWORK_AGENT_SECRET = "your-agent-secret"
+WEWORK_CORP_ID = "wwbf3d667dc5365208"
+WEWORK_AGENT_ID = "1000145"
+WEWORK_AGENT_SECRET = "AaExshvmH1AzprG7Y0yiz1JToKfYW8Jfk_6YVq0mBcY"
 
 @router.get("/wework/redirect")
 async def wework_redirect():

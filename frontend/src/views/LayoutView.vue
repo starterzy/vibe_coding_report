@@ -5,6 +5,7 @@
         <h2 style="margin: 0">报表系统</h2>
         <el-menu
           :default-active="$route.name"
+          :ellipsis="false"
           mode="horizontal"
           background-color="#545c64"
           text-color="#fff"

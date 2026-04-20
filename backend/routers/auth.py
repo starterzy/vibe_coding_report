@@ -14,6 +14,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         raise HTTPException(status_code=401, detail="Invalid username or password")
     access_token = create_access_token(data={"sub": user.username})
     departments = [ud.department.name for ud in user.user_departments]
+    approver_sequences = [seq.sequence for seq in user.approver_sequences]
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
@@ -21,7 +22,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             id=user.id,
             username=user.username,
             roles=[user.roles.value] if isinstance(user.roles, type) else [user.roles],
-            departments=departments
+            departments=departments,
+            approver_sequences=approver_sequences
         )
     )
 
@@ -56,9 +58,11 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     departments = [ud.department.name for ud in current_user.user_departments]
+    approver_sequences = [seq.sequence for seq in current_user.approver_sequences]
     return UserResponse(
         id=current_user.id,
         username=current_user.username,
         roles=[current_user.roles.value] if current_user.roles else [],
-        departments=departments
+        departments=departments,
+        approver_sequences=approver_sequences
     )

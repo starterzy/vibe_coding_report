@@ -22,67 +22,72 @@
     </el-form>
 
     <el-table
-      :data="filteredTasks"
+      v-loading="loading"
+      :data="displayData"
+      :row-key="getRowKey"
+      :span-method="spanMethod"
       stripe
       border
       height="calc(100vh - 220px)"
-      :span-method="spanMethod"
     >
-      <el-table-column prop="sequence" label="序号" width="60" align="center" />
-      <el-table-column prop="taskName" label="重点工作" width="120" show-overflow-tooltip />
-      <el-table-column prop="target" label="主要目标任务" min-width="350" show-overflow-tooltip />
-      <el-table-column label="牵头领导" min-width="120">
+      <el-table-column prop="sequence" label="序号" width="70" align="center" fixed />
+      <el-table-column prop="taskName" label="重点工作" width="120" fixed />
+      <el-table-column prop="target" label="主要目标任务" min-width="450" fixed />
+      <el-table-column label="牵头领导" min-width="150">
         <template #default="{ row }">
           <div class="line-break">{{ row.leader }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="牵头部门" min-width="180">
+      <el-table-column label="牵头部门" min-width="220">
         <template #default="{ row }">
           <div class="line-break">{{ row.departmentName }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="配合部门" min-width="150">
+      <el-table-column label="配合部门" min-width="200">
         <template #default="{ row }">
           <div class="line-break">{{ row.partnerDepts }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="deadline" label="完成时间" width="80" align="center" />
-      <el-table-column prop="measureContent" label="年度工作措施" min-width="350" show-overflow-tooltip />
+      <el-table-column prop="deadline" label="完成时间" width="100" align="center" />
+      <el-table-column prop="measureContent" label="年度工作措施" min-width="450" />
       <el-table-column label="责任人" min-width="120">
         <template #default="{ row }">
           <div class="line-break">{{ row.personLiable || '-' }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="specificMeasures" label="具体举措" min-width="150" show-overflow-tooltip />
-      <el-table-column label="本月工作内容" min-width="200">
+      <el-table-column prop="specificMeasures" label="具体举措" min-width="180" />
+      <el-table-column label="本月工作内容" min-width="280">
         <template #default="{ row }">
-          <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
+          <span v-if="authStore.isLeader" class="cell-text">{{ row.currentContent || '-' }}</span>
+          <span v-else-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
           <el-input
             v-else
             v-model="row.currentContent"
             type="textarea"
-            rows="2"
+            :rows="2"
             placeholder="请输入"
             class="fill-input"
           />
         </template>
       </el-table-column>
-      <el-table-column label="下月工作计划" min-width="200">
+      <el-table-column label="下月工作计划" min-width="280">
         <template #default="{ row }">
-          <span v-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
+          <span v-if="authStore.isLeader" class="cell-text">{{ row.nextPlan || '-' }}</span>
+          <span v-else-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
           <el-input
             v-else
             v-model="row.nextPlan"
             type="textarea"
-            rows="2"
+            :rows="2"
             placeholder="请输入"
             class="fill-input"
           />
         </template>
       </el-table-column>
-      <el-table-column label="完成进度" width="100" align="center">
+      <el-table-column label="完成进度" width="120" align="center">
         <template #default="{ row }">
-          <span v-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
+          <span v-if="authStore.isLeader">{{ row.currentProgress || 0 }}%</span>
+          <span v-else-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
           <el-input-number
             v-else
             v-model="row.currentProgress"
@@ -99,7 +104,7 @@
           <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center">
+<el-table-column v-if="!authStore.isLeader" label="操作" width="160" align="center">
         <template #default="{ row }">
           <template v-if="!row.status || row.status === 'draft'">
             <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
@@ -120,15 +125,22 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { reportApi } from '../api/report'
+import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
 
+const authStore = useAuthStore()
 const tasks = ref([])
 const records = ref({})
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const searchSequence = ref('')
 const searchTarget = ref('')
+const loading = ref(false)
 
-const tableData = computed(() => {
+function getRowKey(row) {
+  return `${row.sequence}`
+}
+
+const allData = computed(() => {
   const result = []
   tasks.value.forEach(task => {
     task.measures.forEach(measure => {
@@ -146,18 +158,19 @@ const tableData = computed(() => {
         personLiable: '',
         specificMeasures: '',
         recordId: record?.id,
-        currentContent: record?.current_content || record?.currentContent || '',
-        nextPlan: record?.next_plan || record?.nextPlan || '',
-        currentProgress: record?.current_progress ?? record?.currentProgress ?? 0,
-        status: record?.status || null
+        currentContent: record?.current_content || '',
+        nextPlan: record?.next_plan || '',
+        currentProgress: record?.current_progress || 0,
+        status: record?.status || null,
+        _target: task.target
       })
     })
   })
   return result
 })
 
-const filteredTasks = computed(() => {
-  let data = tableData.value
+const displayData = computed(() => {
+  let data = allData.value
   if (searchSequence.value) {
     const seq = parseInt(searchSequence.value)
     if (!isNaN(seq)) {
@@ -171,30 +184,40 @@ const filteredTasks = computed(() => {
   return data
 })
 
-// 按主要目标任务合并
-const spanMethod = ({ row, columnIndex }) => {
-  // 需要合并的列: 序号(0), 重点工作(1), 主要目标任务(2), 牵头领导(3), 牵头部门(4), 配合部门(5)
-  if (columnIndex <= 5) {
-    // 找到同一target的第一行
-    const sameTargetRows = filteredTasks.value.filter(r => r.target === row.target)
-    const firstIdx = filteredTasks.value.indexOf(sameTargetRows[0])
-    const currentIdx = filteredTasks.value.indexOf(row)
-    const rowSpan = sameTargetRows.length
-
-    if (currentIdx === firstIdx) {
-      return { rowspan: rowSpan, colspan: 1 }
+const spanMap = computed(() => {
+  const map = {}
+  displayData.value.forEach((row, idx) => {
+    const key = row.sequence
+    if (map[key] === undefined) {
+      map[key] = { count: 0, rows: [] }
     }
+    map[key].count++
+    map[key].rows.push(idx)
+  })
+  return map
+})
+
+function spanMethod({ row, column, rowIndex, columnIndex }) {
+  if (columnIndex > 6) return { rowspan: 1, colspan: 1 }
+
+  const key = row.sequence
+  const info = spanMap.value[key]
+  if (!info) return
+
+  if (rowIndex === info.rows[0]) {
+    return { rowspan: info.count, colspan: 1 }
+  } else {
     return { rowspan: 0, colspan: 1 }
   }
 }
 
 function statusType(status) {
-  const map = { draft: 'info', submitted: 'warning', approved: 'success' }
+  const map = { draft: 'info', submitted: 'warning', approved: 'success', rejected: 'danger' }
   return map[status] || 'info'
 }
 
 function statusText(status) {
-  const map = { draft: '草稿', submitted: '已提交', approved: '已审核' }
+  const map = { draft: '草稿', submitted: '已提交', approved: '已审核', rejected: '已退回' }
   return map[status] || '未填报'
 }
 
@@ -211,6 +234,7 @@ async function fetchRecords() {
     const res = await reportApi.getRecords({ month: selectedMonth.value })
     records.value = {}
     res.forEach(r => {
+      console.log(r)
       records.value[r.measure_id] = r
     })
   } catch (e) {
@@ -219,7 +243,12 @@ async function fetchRecords() {
 }
 
 async function fetchData() {
-  await Promise.all([fetchTasks(), fetchRecords()])
+  loading.value = true
+  try {
+    await Promise.all([fetchTasks(), fetchRecords()])
+  } finally {
+    loading.value = false
+  }
 }
 
 async function saveRow(row) {
@@ -268,7 +297,6 @@ async function submitRow(row) {
 }
 
 function handleSearch() {
-  // computed will auto-update
 }
 
 onMounted(fetchData)

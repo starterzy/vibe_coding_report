@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from datetime import datetime
-from backend.models import get_db, User, Task, Measure, ReportRecord, Department, RoleEnum, StatusEnum
+from backend.models import get_db, User, Task, Measure, ReportRecord, Department, RoleEnum, StatusEnum, TaskLeader, TaskDepartment, TaskPartnerDepartment, UserApproverSequence
 from backend.models.schemas import (
     TaskResponse, MeasureResponse, ReportRecordCreate, ReportRecordUpdate,
     ReportRecordResponse, RejectRequest
@@ -12,15 +12,29 @@ from backend.services.auth_service import get_current_user
 router = APIRouter(prefix="/api/report", tags=["报表"])
 
 def task_to_response(task: Task) -> TaskResponse:
-    dept_name = task.department.name if task.department else ""
+    # 牵头领导 - 多人用换行分隔
+    leader = "\n".join([l.leader_name for l in task.leaders]) if task.leaders else ""
+
+    # 牵头部门 - 多个部门用换行分隔
+    department_name = "\n".join([d.department.name for d in task.departments]) if task.departments else ""
+
+    # 配合部门 - 多个部门用换行分隔
+    partner_list = []
+    for p in task.partner_departments:
+        if p.department:
+            partner_list.append(p.department.name)
+        elif p.department_name:
+            partner_list.append(p.department_name)
+    partner_depts = "\n".join(partner_list) if partner_list else ""
+
     return TaskResponse(
         id=task.id,
         sequence=task.sequence,
         name=task.name,
         target=task.target,
-        leader=task.leader or "",
-        department_name=dept_name,
-        partner_depts=task.partner_depts or "",
+        leader=leader,
+        department_name=department_name,
+        partner_depts=partner_depts,
         deadline=task.deadline or "",
         measures=[
             MeasureResponse(
@@ -58,9 +72,13 @@ async def get_records(
         joinedload(ReportRecord.measure).joinedload(Measure.task)
     )
 
-    # 权限控制：管理能看到所有记录，审批者能看到所有记录，填报者只能看自己的
-    if current_user.roles == RoleEnum.FILLER:
-        query = query.filter(ReportRecord.submitter_id == current_user.id)
+    user_role = current_user.roles.value if hasattr(current_user.roles, 'value') else str(current_user.roles)
+
+    # 权限控制：领导层只能看已审核的记录，其他人（管理、审批者、填报者）都能看到所有记录
+    if user_role == 'leader':
+        # 领导层只能看已审核的记录
+        query = query.filter(ReportRecord.status == StatusEnum.APPROVED)
+    # filler、approver、admin 都能看到所有记录，不需要额外过滤
 
     if status_filter:
         query = query.filter(ReportRecord.status == StatusEnum[status_filter.upper()])
@@ -228,6 +246,20 @@ async def submit_record(
         task_sequence=record.measure.task.sequence
     )
 
+def _check_approver_permission(user: User, record: ReportRecord, db: Session) -> None:
+    """审批者权限检查：检查该记录对应的任务序号是否在审批者的可审批序号列表中"""
+    user_role = user.roles.value if hasattr(user.roles, 'value') else str(user.roles)
+    if user_role != 'approver':
+        return
+
+    task = db.query(Task).filter(Task.id == record.measure.task_id).first()
+    task_sequence = task.sequence
+
+    # 检查该序号是否在审批者的可审批序号列表中
+    user_sequences = [seq.sequence for seq in user.approver_sequences]
+    if task_sequence not in user_sequences:
+        raise HTTPException(status_code=403, detail="No permission to approve this record")
+
 @router.post("/records/{record_id}/approve", response_model=ReportRecordResponse)
 async def approve_record(
     record_id: int,
@@ -243,6 +275,9 @@ async def approve_record(
         raise HTTPException(status_code=404, detail="Record not found")
     if record.status.value != StatusEnum.SUBMITTED.value:
         raise HTTPException(status_code=400, detail="Can only approve submitted records")
+
+    # 审批者权限检查：按序号检查
+    _check_approver_permission(current_user, record, db)
 
     record.status = StatusEnum.APPROVED
     record.reviewed_at = datetime.utcnow()
@@ -285,6 +320,9 @@ async def reject_record(
     if record.status.value != StatusEnum.SUBMITTED.value:
         raise HTTPException(status_code=400, detail="Can only reject submitted records")
 
+    # 审批者权限检查：按序号检查
+    _check_approver_permission(current_user, record, db)
+
     # 退回后恢复为草稿状态
     record.status = StatusEnum.DRAFT
     record.submitted_at = None
@@ -294,7 +332,7 @@ async def reject_record(
         id=record.id,
         measure_id=record.measure_id,
         submitter_id=record.submitter_id,
-        submitter_name=record.submitter.username,
+        submitter_name=current_user.username,
         month=record.month,
         current_content=record.current_content,
         next_plan=record.next_plan,

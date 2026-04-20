@@ -19,9 +19,9 @@
       </el-form>
       <div class="demo-accounts">
         <p>测试账号：</p>
-        <p>admin / admin123 (管理员)</p>
         <p>filler / filler123 (填报者)</p>
         <p>approver / approver123 (审批者)</p>
+        <p>leader1 / leader123 (领导)</p>
       </div>
     </el-card>
   </div>

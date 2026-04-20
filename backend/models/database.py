@@ -11,6 +11,7 @@ Base = declarative_base()
 class RoleEnum(enum.Enum):
     FILLER = "filler"      # 填报者
     APPROVER = "approver"  # 审批者
+    LEADER = "leader"      # 领导层
     ADMIN = "admin"        # 管理者
 
 class StatusEnum(enum.Enum):
@@ -24,15 +25,19 @@ class Department(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     users = relationship("UserDepartment", back_populates="department")
+    task_departments = relationship("TaskDepartment", back_populates="department")
+    task_partner_departments = relationship("TaskPartnerDepartment", back_populates="department")
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False)
-    phone = Column(String(20), unique=True, nullable=True)  # 手机号，企业微信用户唯一标识
+    phone = Column(String(20), unique=True, nullable=True)
     password_hash = Column(String(200), nullable=False)
     roles = Column(SQLEnum(RoleEnum, values_callable=lambda x: [e.value for e in x]), default=RoleEnum.FILLER)
+    is_active = Column(Integer, default=1)
     user_departments = relationship("UserDepartment", back_populates="user")
+    approver_sequences = relationship("UserApproverSequence", back_populates="user", cascade="all, delete-orphan")
     submitted_records = relationship("ReportRecord", back_populates="submitter", foreign_keys="ReportRecord.submitter_id")
     reviewed_records = relationship("ReportRecord", back_populates="reviewer", foreign_keys="ReportRecord.reviewer_id")
 
@@ -44,19 +49,49 @@ class UserDepartment(Base):
     user = relationship("User", back_populates="user_departments")
     department = relationship("Department", back_populates="users")
 
+class UserApproverSequence(Base):
+    __tablename__ = "user_approver_sequences"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sequence = Column(Integer, nullable=False)  # 审批者有权限的序号
+    user = relationship("User", back_populates="approver_sequences")
+
+class TaskLeader(Base):
+    __tablename__ = "task_leaders"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    leader_name = Column(String(100), nullable=False)
+    task = relationship("Task", back_populates="leaders")
+
+class TaskDepartment(Base):
+    __tablename__ = "task_departments"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
+    task = relationship("Task", back_populates="departments")
+    department = relationship("Department", back_populates="task_departments")
+
+class TaskPartnerDepartment(Base):
+    __tablename__ = "task_partner_departments"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    department_name = Column(String(100))
+    task = relationship("Task", back_populates="partner_departments")
+    department = relationship("Department", back_populates="task_partner_departments")
+
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
     sequence = Column(Integer, nullable=False)  # 序号
     name = Column(String(100), nullable=False)     # 重点工作名称
     target = Column(Text, nullable=False)         # 主要目标任务
-    leader = Column(String(100))                  # 牵头领导
-    department_id = Column(Integer, ForeignKey("departments.id"))  # 牵头部门
-    partner_depts = Column(String(200))            # 配合部门
     deadline = Column(String(50))                  # 完成时间
     year = Column(Integer, default=2026)
     measures = relationship("Measure", back_populates="task")
-    department = relationship("Department")
+    leaders = relationship("TaskLeader", back_populates="task", cascade="all, delete-orphan")
+    departments = relationship("TaskDepartment", back_populates="task", cascade="all, delete-orphan")
+    partner_departments = relationship("TaskPartnerDepartment", back_populates="task", cascade="all, delete-orphan")
 
 class Measure(Base):
     __tablename__ = "measures"

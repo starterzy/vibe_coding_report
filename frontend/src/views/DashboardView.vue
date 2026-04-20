@@ -31,11 +31,11 @@
     <el-card style="margin-top: 20px">
       <template #header>当前月份填报状态</template>
       <el-table :data="monthlyStats" stripe>
-        <el-table-column prop="month" label="月份" width="100" />
-        <el-table-column prop="total" label="总措施数" width="120" />
-        <el-table-column prop="draft" label="草稿" width="100" />
-        <el-table-column prop="submitted" label="已提交" width="100" />
-        <el-table-column prop="approved" label="已审核" width="100" />
+        <el-table-column prop="month" label="月份" width="120" />
+        <el-table-column prop="total" label="总措施数" width="140" />
+        <el-table-column prop="draft" label="草稿" width="120" />
+        <el-table-column prop="submitted" label="已提交" width="120" />
+        <el-table-column prop="approved" label="已审核" width="120" />
         <el-table-column label="进度">
           <template #default="{ row }">
             <el-progress :percentage="row.total ? Math.round(row.approved / row.total * 100) : 0" />
@@ -65,7 +65,7 @@ const stats = computed(() => {
 })
 
 const monthlyStats = computed(() => {
-  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06',
+  const months = ['2026-04', '2026-05', '2026-06',
                   '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12']
   return months.map(m => {
     const monthRecords = records.value.filter(r => r.month === m)

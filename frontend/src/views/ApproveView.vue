@@ -22,19 +22,19 @@
     </el-form>
 
     <el-table :data="records" stripe border height="calc(100vh - 220px)">
-      <el-table-column prop="task_sequence" label="序号" width="60" align="center" />
-      <el-table-column prop="task_name" label="工作任务" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="measure_content" label="工作措施" min-width="300" show-overflow-tooltip />
-      <el-table-column prop="submitter_name" label="填报人" width="100" align="center" />
+      <el-table-column prop="task_sequence" label="序号" width="70" align="center" />
+      <el-table-column prop="task_name" label="工作任务" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="measure_content" label="工作措施" min-width="400" show-overflow-tooltip />
+      <el-table-column prop="submitter_name" label="填报人" width="120" align="center" />
       <el-table-column prop="current_progress" label="进度" width="80" align="center">
         <template #default="{ row }">{{ row.current_progress || 0 }}%</template>
       </el-table-column>
-      <el-table-column label="状态" width="80" align="center">
+      <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="本月工作内容" min-width="200">
+      <el-table-column label="本月工作内容" min-width="280">
         <template #default="{ row }">
           <span v-if="row.status === 'approved'" class="cell-text">{{ row.current_content || '-' }}</span>
           <el-input
@@ -47,7 +47,7 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="下月工作计划" min-width="200">
+      <el-table-column label="下月工作计划" min-width="280">
         <template #default="{ row }">
           <span v-if="row.status === 'approved'" class="cell-text">{{ row.next_plan || '-' }}</span>
           <el-input
@@ -60,12 +60,12 @@
           />
         </template>
       </el-table-column>
-      <el-table-column prop="submitted_at" label="提交时间" width="160">
+      <el-table-column prop="submitted_at" label="提交时间" width="180">
         <template #default="{ row }">
           {{ row.submitted_at ? new Date(row.submitted_at).toLocaleString() : '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right" align="center">
+      <el-table-column label="操作" width="200" fixed="right" align="center">
         <template #default="{ row }">
           <template v-if="row.status === 'submitted'">
             <el-button type="success" size="small" @click="approveRecord(row)">通过</el-button>
@@ -88,8 +88,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { reportApi } from '../api/report'
+import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
 
+const authStore = useAuthStore()
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const statusFilter = ref('')
 const records = ref([])
@@ -110,7 +112,13 @@ async function fetchRecords() {
     if (statusFilter.value) {
       params.status_filter = statusFilter.value
     }
-    records.value = await reportApi.getRecords(params)
+    let allRecords = await reportApi.getRecords(params)
+    // 审批者只能看到自己有权限审批的记录
+    if (authStore.isApprover && !authStore.isAdmin) {
+      const sequences = authStore.user?.approver_sequences || []
+      allRecords = allRecords.filter(r => sequences.includes(r.task_sequence))
+    }
+    records.value = allRecords
   } catch (e) {
     console.error(e)
   }
