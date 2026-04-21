@@ -273,8 +273,10 @@ async def approve_record(
     record = db.query(ReportRecord).filter(ReportRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Record not found")
+    if record.status.value == StatusEnum.APPROVED.value:
+        raise HTTPException(status_code=400, detail="该记录已审核，请勿重复操作")
     if record.status.value != StatusEnum.SUBMITTED.value:
-        raise HTTPException(status_code=400, detail="Can only approve submitted records")
+        raise HTTPException(status_code=400, detail="只能审核已提交的记录")
 
     # 审批者权限检查：按序号检查
     _check_approver_permission(current_user, record, db)

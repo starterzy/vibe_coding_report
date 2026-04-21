@@ -165,3 +165,25 @@ onMounted(fetchRecords)
   white-space: normal;
 }
 </style>
+
+<style>
+.el-table {
+  border: 1px solid #dcdfe6;
+}
+.el-table th {
+  background-color: #f5f7fa !important;
+  border: 1px solid #dcdfe6;
+}
+.el-table td {
+  border: 1px solid #dcdfe6 !important;
+  vertical-align: top;
+}
+.el-table .cell {
+  word-break: break-word !important;
+  white-space: normal !important;
+  border: none !important;
+}
+.el-table--border .el-table__cell {
+  border-right: 1px solid #dcdfe6;
+}
+</style>

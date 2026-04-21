@@ -135,9 +135,10 @@ const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const searchSequence = ref('')
 const searchTarget = ref('')
 const loading = ref(false)
+const searchVersion = ref(0)
 
 function getRowKey(row) {
-  return `${row.sequence}`
+  return `${row.measureId}`
 }
 
 const allData = computed(() => {
@@ -170,6 +171,7 @@ const allData = computed(() => {
 })
 
 const displayData = computed(() => {
+  searchVersion.value // force re-compute on search
   let data = allData.value
   if (searchSequence.value) {
     const seq = parseInt(searchSequence.value)
@@ -232,10 +234,18 @@ async function fetchTasks() {
 async function fetchRecords() {
   try {
     const res = await reportApi.getRecords({ month: selectedMonth.value })
+    // 先保存现有记录（包含未提交的本地数据）
+    const existingRecords = { ...records.value }
     records.value = {}
     res.forEach(r => {
-      console.log(r)
       records.value[r.measure_id] = r
+    })
+    // 恢复未提交且不在服务器返回中的记录
+    Object.keys(existingRecords).forEach(measureId => {
+      const existing = existingRecords[measureId]
+      if (!records.value[measureId] && existing && !existing.id) {
+        records.value[measureId] = existing
+      }
     })
   } catch (e) {
     console.error(e)
@@ -297,6 +307,7 @@ async function submitRow(row) {
 }
 
 function handleSearch() {
+  searchVersion.value++
 }
 
 onMounted(fetchData)
@@ -323,11 +334,23 @@ onMounted(fetchData)
 </style>
 
 <style>
+.el-table {
+  border: 1px solid #dcdfe6;
+}
+.el-table th {
+  background-color: #f5f7fa !important;
+  border: 1px solid #dcdfe6;
+}
+.el-table td {
+  border: 1px solid #dcdfe6 !important;
+  vertical-align: top;
+}
 .el-table .cell {
   word-break: break-word !important;
   white-space: normal !important;
+  border: none !important;
 }
-.el-table td {
-  vertical-align: top;
+.el-table--border .el-table__cell {
+  border-right: 1px solid #dcdfe6;
 }
 </style>
