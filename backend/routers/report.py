@@ -172,7 +172,9 @@ async def update_record(
 
     user_role = current_user.roles.value if hasattr(current_user.roles, 'value') else str(current_user.roles)
 
-    # 草稿可以修改，审批者也可以修改已提交的记录
+    # 草稿可以修改，已审批的记录只有管理员可以修改
+    if record.status.value == StatusEnum.APPROVED.value and user_role != 'admin':
+        raise HTTPException(status_code=400, detail="已审核的记录无法修改")
     if record.status.value != StatusEnum.DRAFT.value and user_role not in ('approver', 'admin'):
         raise HTTPException(status_code=400, detail="Only draft records or approvers can modify")
 
