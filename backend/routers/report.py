@@ -40,7 +40,8 @@ def task_to_response(task: Task) -> TaskResponse:
             MeasureResponse(
                 id=m.id,
                 content=m.content,
-                task_id=m.task_id
+                task_id=m.task_id,
+                person_liable=m.person_liable
             ) for m in task.measures
         ]
     )
@@ -97,7 +98,6 @@ async def get_records(
             month=r.month,
             current_content=r.current_content,
             next_plan=r.next_plan,
-            current_progress=r.current_progress or 0,
             status=r.status.value,
             submitted_at=r.submitted_at,
             reviewed_at=r.reviewed_at,
@@ -134,7 +134,6 @@ async def create_record(
         month=record.month,
         current_content=record.current_content,
         next_plan=record.next_plan,
-        current_progress=record.current_progress or 0,
         status=StatusEnum.DRAFT
     )
     db.add(new_record)
@@ -148,7 +147,6 @@ async def create_record(
         month=new_record.month,
         current_content=new_record.current_content,
         next_plan=new_record.next_plan,
-        current_progress=new_record.current_progress or 0,
         status=new_record.status.value,
         submitted_at=new_record.submitted_at,
         reviewed_at=new_record.reviewed_at,
@@ -174,23 +172,16 @@ async def update_record(
 
     # 草稿可以修改，已审批的记录只有管理员可以修改
     if record.status.value == StatusEnum.APPROVED.value and user_role != 'admin':
+        db.rollback()
         raise HTTPException(status_code=400, detail="已审核的记录无法修改")
     if record.status.value != StatusEnum.DRAFT.value and user_role not in ('approver', 'admin'):
+        db.rollback()
         raise HTTPException(status_code=400, detail="Only draft records or approvers can modify")
 
     if update_data.current_content is not None:
         record.current_content = update_data.current_content
     if update_data.next_plan is not None:
         record.next_plan = update_data.next_plan
-    if update_data.current_progress is not None:
-        record.current_progress = update_data.current_progress
-    if update_data.status == StatusEnum.SUBMITTED and record.status == StatusEnum.DRAFT:
-        record.status = StatusEnum.SUBMITTED
-        record.submitted_at = datetime.utcnow()
-    if update_data.status == StatusEnum.APPROVED and current_user.roles == RoleEnum.APPROVER:
-        record.status = StatusEnum.APPROVED
-        record.reviewed_at = datetime.utcnow()
-        record.reviewer_id = current_user.id
 
     db.commit()
     db.refresh(record)
@@ -202,7 +193,6 @@ async def update_record(
         month=record.month,
         current_content=record.current_content,
         next_plan=record.next_plan,
-        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,
@@ -237,7 +227,6 @@ async def submit_record(
         month=record.month,
         current_content=record.current_content,
         next_plan=record.next_plan,
-        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,
@@ -274,10 +263,13 @@ async def approve_record(
 
     record = db.query(ReportRecord).filter(ReportRecord.id == record_id).first()
     if not record:
+        db.rollback()
         raise HTTPException(status_code=404, detail="Record not found")
     if record.status.value == StatusEnum.APPROVED.value:
+        db.rollback()
         raise HTTPException(status_code=400, detail="该记录已审核，请勿重复操作")
     if record.status.value != StatusEnum.SUBMITTED.value:
+        db.rollback()
         raise HTTPException(status_code=400, detail="只能审核已提交的记录")
 
     # 审批者权限检查：按序号检查
@@ -296,7 +288,6 @@ async def approve_record(
         month=record.month,
         current_content=record.current_content,
         next_plan=record.next_plan,
-        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,
@@ -340,7 +331,6 @@ async def reject_record(
         month=record.month,
         current_content=record.current_content,
         next_plan=record.next_plan,
-        current_progress=record.current_progress or 0,
         status=record.status.value,
         submitted_at=record.submitted_at,
         reviewed_at=record.reviewed_at,

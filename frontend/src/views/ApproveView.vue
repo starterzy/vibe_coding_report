@@ -17,6 +17,7 @@
           <el-option label="全部" value="" />
           <el-option label="已提交" value="submitted" />
           <el-option label="已审核" value="approved" />
+          <el-option label="已退回" value="rejected" />
         </el-select>
       </el-form-item>
     </el-form>
@@ -26,9 +27,6 @@
       <el-table-column prop="task_name" label="工作任务" min-width="200" show-overflow-tooltip />
       <el-table-column prop="measure_content" label="工作措施" min-width="400" show-overflow-tooltip />
       <el-table-column prop="submitter_name" label="填报人" width="120" align="center" />
-      <el-table-column prop="current_progress" label="进度" width="80" align="center">
-        <template #default="{ row }">{{ row.current_progress || 0 }}%</template>
-      </el-table-column>
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
@@ -41,7 +39,7 @@
             v-else
             v-model="row.current_content"
             type="textarea"
-            rows="2"
+            :rows="2"
             placeholder="请输入"
             @change="row._modified = true"
           />
@@ -54,7 +52,7 @@
             v-else
             v-model="row.next_plan"
             type="textarea"
-            rows="2"
+            :rows="2"
             placeholder="请输入"
             @change="row._modified = true"
           />
@@ -130,8 +128,7 @@ async function approveRecord(row) {
     if (row._modified) {
       await reportApi.updateRecord(row.id, {
         current_content: row.current_content,
-        next_plan: row.next_plan,
-        current_progress: row.current_progress
+        next_plan: row.next_plan
       })
       row._modified = false
     }

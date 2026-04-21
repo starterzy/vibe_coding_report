@@ -19,6 +19,12 @@
       <el-form-item label="目标任务">
         <el-input v-model="searchTarget" placeholder="搜索目标任务" clearable @input="handleSearch" style="width: 200px" />
       </el-form-item>
+      <el-form-item label="责任人">
+        <el-input v-model="searchPersonLiable" placeholder="搜索责任人" clearable @input="handleSearch" style="width: 120px" />
+      </el-form-item>
+      <el-form-item label="牵头部门">
+        <el-input v-model="searchDepartment" placeholder="搜索部门" clearable @input="handleSearch" style="width: 150px" />
+      </el-form-item>
     </el-form>
 
     <el-table
@@ -30,27 +36,27 @@
       border
       height="calc(100vh - 220px)"
     >
-      <el-table-column prop="sequence" label="序号" width="70" align="center" fixed />
-      <el-table-column prop="taskName" label="重点工作" width="120" fixed />
-      <el-table-column prop="target" label="主要目标任务" min-width="450" fixed />
-      <el-table-column label="牵头领导" min-width="150">
+      <el-table-column prop="sequence" label="序号" width="40" align="center" fixed />
+      <el-table-column prop="taskName" label="重点工作" width="100" fixed />
+      <el-table-column prop="target" label="主要目标任务" min-width="200" fixed />
+      <el-table-column label="牵头领导" min-width="40">
         <template #default="{ row }">
           <div class="line-break">{{ row.leader }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="牵头部门" min-width="220">
+      <el-table-column label="牵头部门" min-width="40">
         <template #default="{ row }">
           <div class="line-break">{{ row.departmentName }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="配合部门" min-width="200">
+      <el-table-column label="配合部门" min-width="40">
         <template #default="{ row }">
           <div class="line-break">{{ row.partnerDepts }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="deadline" label="完成时间" width="100" align="center" />
+      <el-table-column prop="deadline" label="完成时间" width="40" align="center" />
       <el-table-column prop="measureContent" label="年度工作措施" min-width="450" />
-      <el-table-column label="责任人" min-width="120">
+      <el-table-column label="责任人" min-width="40">
         <template #default="{ row }">
           <div class="line-break">{{ row.personLiable || '-' }}</div>
         </template>
@@ -67,6 +73,7 @@
             :rows="2"
             placeholder="请输入"
             class="fill-input"
+            @change="row._modified = true"
           />
         </template>
       </el-table-column>
@@ -81,21 +88,7 @@
             :rows="2"
             placeholder="请输入"
             class="fill-input"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="完成进度" width="120" align="center">
-        <template #default="{ row }">
-          <span v-if="authStore.isLeader">{{ row.currentProgress || 0 }}%</span>
-          <span v-else-if="row.status && row.status !== 'draft'">{{ row.currentProgress || 0 }}%</span>
-          <el-input-number
-            v-else
-            v-model="row.currentProgress"
-            :min="0"
-            :max="100"
-            size="small"
-            controls-position="right"
-            style="width: 80px"
+            @change="row._modified = true"
           />
         </template>
       </el-table-column>
@@ -134,6 +127,8 @@ const records = ref({})
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const searchSequence = ref('')
 const searchTarget = ref('')
+const searchPersonLiable = ref('')
+const searchDepartment = ref('')
 const loading = ref(false)
 const searchVersion = ref(0)
 
@@ -156,13 +151,13 @@ const allData = computed(() => {
         deadline: task.deadline || '',
         measureId: measure.id,
         measureContent: measure.content,
-        personLiable: '',
+        personLiable: measure.person_liable || '',
         specificMeasures: '',
         recordId: record?.id,
         currentContent: record?.current_content || '',
         nextPlan: record?.next_plan || '',
-        currentProgress: record?.current_progress || 0,
         status: record?.status || null,
+        _modified: false,
         _target: task.target
       })
     })
@@ -182,6 +177,14 @@ const displayData = computed(() => {
   if (searchTarget.value) {
     const keyword = searchTarget.value.toLowerCase()
     data = data.filter(row => row.target.toLowerCase().includes(keyword))
+  }
+  if (searchPersonLiable.value) {
+    const keyword = searchPersonLiable.value.toLowerCase()
+    data = data.filter(row => row.personLiable && row.personLiable.toLowerCase().includes(keyword))
+  }
+  if (searchDepartment.value) {
+    const keyword = searchDepartment.value.toLowerCase()
+    data = data.filter(row => row.departmentName && row.departmentName.toLowerCase().includes(keyword))
   }
   return data
 })
@@ -266,16 +269,14 @@ async function saveRow(row) {
     if (row.recordId) {
       await reportApi.updateRecord(row.recordId, {
         current_content: row.currentContent,
-        next_plan: row.nextPlan,
-        current_progress: row.currentProgress
+        next_plan: row.nextPlan
       })
     } else {
       const res = await reportApi.createRecord({
         measure_id: row.measureId,
         month: selectedMonth.value,
         current_content: row.currentContent,
-        next_plan: row.nextPlan,
-        current_progress: row.currentProgress
+        next_plan: row.nextPlan
       })
       row.recordId = res.id
     }
@@ -288,16 +289,41 @@ async function saveRow(row) {
 
 async function submitRow(row) {
   try {
+    // 先保存其他已修改的行
+    const modifiedRows = displayData.value.filter(r => r._modified && r !== row)
+    for (const r of modifiedRows) {
+      if (r.recordId) {
+        await reportApi.updateRecord(r.recordId, {
+          current_content: r.currentContent,
+          next_plan: r.nextPlan
+        })
+      } else {
+        const res = await reportApi.createRecord({
+          measure_id: r.measureId,
+          month: selectedMonth.value,
+          current_content: r.currentContent,
+          next_plan: r.nextPlan
+        })
+        r.recordId = res.id
+      }
+      r._modified = false
+    }
+
     if (!row.recordId) {
       const res = await reportApi.createRecord({
         measure_id: row.measureId,
         month: selectedMonth.value,
         current_content: row.currentContent,
-        next_plan: row.nextPlan,
-        current_progress: row.currentProgress
+        next_plan: row.nextPlan
       })
       row.recordId = res.id
+    } else {
+      await reportApi.updateRecord(row.recordId, {
+        current_content: row.currentContent,
+        next_plan: row.nextPlan
+      })
     }
+    row._modified = false
     await reportApi.submitRecord(row.recordId)
     ElMessage.success('提交成功')
     fetchRecords()

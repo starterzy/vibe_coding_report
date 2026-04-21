@@ -110,7 +110,6 @@ class ReportRecord(Base):
     month = Column(String(7), nullable=False)        # 填报月份 YYYY-MM
     current_content = Column(Text)                 # 本月工作内容
     next_plan = Column(Text)                       # 下月工作计划
-    current_progress = Column(Integer, default=0)  # 当前措施完成百分比 0-100
     status = Column(SQLEnum(StatusEnum, values_callable=lambda x: [e.value for e in x]), default=StatusEnum.DRAFT)
     submitted_at = Column(DateTime, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
