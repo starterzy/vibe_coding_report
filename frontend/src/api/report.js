@@ -31,5 +31,14 @@ export const reportApi = {
 
   getDepartments() {
     return api.get('/api/departments')
+  },
+
+  exportRecords(params = {}) {
+    // Remove columns from params since we're not doing column selection anymore
+    const { columns, ...rest } = params
+    return api.get('/api/report/export', {
+      params: rest,
+      responseType: 'blob'
+    })
   }
 }

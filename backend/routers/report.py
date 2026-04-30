@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
 from backend.models import get_db, User, Task, Measure, ReportRecord, Department, RoleEnum, StatusEnum, TaskLeader, TaskDepartment, TaskPartnerDepartment, UserApproverSequence
 from backend.models.schemas import (
     TaskResponse, MeasureResponse, ReportRecordCreate, ReportRecordUpdate,
     ReportRecordResponse, RejectRequest
 )
 from backend.services.auth_service import get_current_user
+from backend.services.excel_service import export_excel_from_db
+import io
 
 router = APIRouter(prefix="/api/report", tags=["报表"])
 
@@ -339,3 +344,31 @@ async def reject_record(
         task_name=record.task.name,
         task_sequence=record.task.sequence
     )
+
+@router.get("/export")
+async def export_records(
+    month: str = Query(..., description="月份 YYYY-MM格式"),
+    columns: Optional[str] = Query(None, description="选中的列，逗号分隔"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """导出任务列表Excel"""
+    # 获取模板路径
+    template_path = Path(__file__).parent.parent.parent / "2026年度集团总部重点工作任务分解表（填写责任人和举措）.xlsx"
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="模板文件不存在")
+
+    # 解析选中的列
+    selected_columns = columns.split(',') if columns else None
+
+    try:
+        excel_data = export_excel_from_db(db, str(template_path), month, selected_columns)
+        filename = f"任务列表_{month}.xlsx"
+        encoded_filename = quote(filename, safe='')
+        return StreamingResponse(
+            io.BytesIO(excel_data),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

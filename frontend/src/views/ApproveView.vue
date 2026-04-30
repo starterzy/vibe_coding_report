@@ -1,7 +1,7 @@
 <template>
   <div>
     <h2 class="compact-title">审批管理</h2>
-    <el-form inline class="search-form">
+    <el-form inline class="search-form" :ellipsis="false">
       <el-form-item label="月份">
         <el-date-picker
           v-model="selectedMonth"
@@ -13,7 +13,7 @@
           style="width: 120px"
         />
       </el-form-item>
-      <el-form-item label="状态">
+      <el-form-item label="状态" :ellipsis="false">
         <el-select v-model="statusFilter" @change="fetchRecords">
           <el-option label="全部" value="" />
           <el-option label="已提交" value="submitted" />

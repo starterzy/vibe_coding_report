@@ -27,7 +27,7 @@
         <el-input v-model="searchDepartment" placeholder="部门" clearable @input="handleSearch" style="width: 120px" />
       </el-form-item>
       <el-form-item>
-        <el-button type="success" @click="showExportDialog">导出</el-button>
+        <el-button type="success" @click="handleExport">全表导出</el-button>
       </el-form-item>
     </el-form>
 
@@ -72,7 +72,7 @@
       <el-table-column prop="specificMeasures" label="具体举措" min-width="150" />
 
       <!-- 列10-11: 本月/下月 - 按 task 合并显示 -->
-      <el-table-column label="本月工作内容" min-width="220">
+      <el-table-column label="本月工作内容" min-width="300">
         <template #default="{ row }">
           <template v-if="row._isFirstRow">
             <span v-if="authStore.isLeader" class="cell-text">{{ row.currentContent || '-' }}</span>
@@ -89,7 +89,7 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column label="下月工作计划" min-width="220">
+      <el-table-column label="下月工作计划" min-width="300">
         <template #default="{ row }">
           <template v-if="row._isFirstRow">
             <span v-if="authStore.isLeader" class="cell-text">{{ row.nextPlan || '-' }}</span>
@@ -135,28 +135,6 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="exportDialogVisible" title="导出任务列表" width="500px">
-      <el-checkbox-group v-model="selectedColumns">
-        <el-row>
-          <el-col :span="8"><el-checkbox label="sequence">序号</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="taskName">重点工作</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="target">主要目标任务</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="leader">牵头领导</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="departmentName">牵头部门</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="partnerDepts">配合部门</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="deadline">完成时间</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="measureContent">年度工作措施</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="personLiable">责任人</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="specificMeasures">具体举措</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="currentContent">本月工作内容</el-checkbox></el-col>
-          <el-col :span="8"><el-checkbox label="nextPlan">下月工作计划</el-checkbox></el-col>
-        </el-row>
-      </el-checkbox-group>
-      <template #footer>
-        <el-button @click="exportDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleExport">确认</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -165,7 +143,6 @@ import { ref, computed, onMounted } from 'vue'
 import { reportApi } from '../api/report'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
-import * as XLSX from 'xlsx'
 
 const authStore = useAuthStore()
 const tasks = ref([])
@@ -408,120 +385,23 @@ function handleSearch() {
   searchVersion.value++
 }
 
-function showExportDialog() {
-  exportDialogVisible.value = true
-}
-
 async function handleExport() {
   try {
-    // 获取已提交的记录和任务列表
-    const [tasksRes, recordsRes] = await Promise.all([
-      reportApi.getTasks(),
-      reportApi.getRecords({ month: selectedMonth.value, status_filter: 'submitted' })
-    ])
-
-    // 构建 task_id -> task 映射
-    const taskMap = new Map()
-    tasksRes.forEach(t => taskMap.set(t.id, t))
-
-    // 按 task 分组，每个 task 只导出一行（取第一个 measure 的信息）
-    const taskRecordsMap = new Map()
-    recordsRes.forEach(r => {
-      if (!taskRecordsMap.has(r.task_id)) {
-        taskRecordsMap.set(r.task_id, r)
-      }
+    const response = await reportApi.exportRecords({
+      month: selectedMonth.value
     })
 
-    const exportData = []
-    const columnLabels = {
-      sequence: '序号',
-      taskName: '重点工作',
-      target: '主要目标任务',
-      leader: '牵头领导',
-      departmentName: '牵头部门',
-      partnerDepts: '配合部门',
-      deadline: '完成时间',
-      measureContent: '年度工作措施',
-      personLiable: '责任人',
-      specificMeasures: '具体举措',
-      currentContent: '本月工作内容',
-      nextPlan: '下月工作计划'
-    }
+    const blob = response
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `任务列表_${selectedMonth.value}.xlsx`
+    link.click()
+    URL.revokeObjectURL(url)
 
-    taskRecordsMap.forEach((record, taskId) => {
-      const task = taskMap.get(taskId)
-      if (!task) return
-
-      const row = {}
-      selectedColumns.value.forEach(col => {
-        switch (col) {
-          case 'sequence':
-            row[columnLabels[col]] = task.sequence
-            break
-          case 'taskName':
-            row[columnLabels[col]] = task.name
-            break
-          case 'target':
-            row[columnLabels[col]] = task.target
-            break
-          case 'leader':
-            row[columnLabels[col]] = task.leader
-            break
-          case 'departmentName':
-            row[columnLabels[col]] = task.department_name
-            break
-          case 'partnerDepts':
-            row[columnLabels[col]] = task.partner_depts
-            break
-          case 'deadline':
-            row[columnLabels[col]] = task.deadline
-            break
-          case 'measureContent':
-            // 年度工作措施取第一个 measure
-            row[columnLabels[col]] = task.measures && task.measures.length > 0 ? task.measures[0].content : ''
-            break
-          case 'personLiable':
-            row[columnLabels[col]] = task.measures && task.measures.length > 0 ? task.measures[0].person_liable : ''
-            break
-          case 'specificMeasures':
-            row[columnLabels[col]] = ''
-            break
-          case 'currentContent':
-            row[columnLabels[col]] = record.current_content || ''
-            break
-          case 'nextPlan':
-            row[columnLabels[col]] = record.next_plan || ''
-            break
-        }
-      })
-      exportData.push(row)
-    })
-
-    if (exportData.length === 0) {
-      ElMessage.warning('没有已提交的数据可导出')
-      return
-    }
-
-    // 创建工作簿
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(exportData)
-
-    // 设置列宽
-    const colWidths = selectedColumns.value.map(col => {
-      const label = columnLabels[col]
-      return { wch: Math.max(label.length * 2, 15) }
-    })
-    ws['!cols'] = colWidths
-
-    XLSX.utils.book_append_sheet(wb, ws, '任务列表')
-
-    // 下载文件
-    const fileName = `任务列表_${selectedMonth.value}.xlsx`
-    XLSX.writeFile(wb, fileName)
-
-    exportDialogVisible.value = false
     ElMessage.success('导出成功')
   } catch (e) {
+    console.error('Export error:', e)
     ElMessage.error('导出失败：' + (e.response?.data?.detail || e.message))
   }
 }
@@ -579,6 +459,9 @@ onMounted(fetchData)
   width: 100%;
   height: 100%;
   min-height: 24px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 </style>
 
