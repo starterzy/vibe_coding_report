@@ -106,7 +106,6 @@ class ReportRecordResponse(ReportRecordBase):
     reject_reason: Optional[str] = None
     task_name: str
     task_sequence: int
-    task_target: str = ""
     class Config:
         from_attributes = True
 

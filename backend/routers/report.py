@@ -106,8 +106,7 @@ async def get_records(
             reviewer_name=r.reviewer.username if r.reviewer else None,
             reject_reason=r.reject_reason,
             task_name=r.task.name,
-            task_sequence=r.task.sequence,
-            task_target=r.task.target
+            task_sequence=r.task.sequence
         ))
     return result
 

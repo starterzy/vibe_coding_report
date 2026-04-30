@@ -78,7 +78,7 @@
               v-else
               v-model="row.currentContent"
               type="textarea"
-              :rows="1"
+              :autosize="{ minRows: 2, maxRows: 20 }"
               placeholder="请输入"
               class="fill-input compact-input"
               @change="handleContentChange(row)"
@@ -95,7 +95,7 @@
               v-else
               v-model="row.nextPlan"
               type="textarea"
-              :rows="1"
+              :autosize="{ minRows: 2, maxRows: 20 }"
               placeholder="请输入"
               class="fill-input compact-input"
               @change="handleContentChange(row)"
@@ -403,19 +403,19 @@ onMounted(fetchData)
 }
 .line-break {
   white-space: pre-line;
-  line-height: 1.0;
+  line-height: 1.3;
 }
 .compact-cell {
   font-family: "宋体", "SimSun", serif;
   font-size: 12px;
-  line-height: 1.0;
+  line-height: 1.3;
 }
 .cell-text {
   word-break: break-word;
   white-space: normal;
   font-family: "宋体", "SimSun", serif;
   font-size: 12px;
-  line-height: 1.0;
+  line-height: 1.3;
 }
 .fill-input {
   width: 100%;
@@ -427,7 +427,7 @@ onMounted(fetchData)
 .compact-input textarea {
   font-family: "宋体", "SimSun", serif;
   font-size: 12px;
-  line-height: 1.0;
+  line-height: 1.3;
   resize: none;
   width: 100%;
   height: 100%;
@@ -448,7 +448,7 @@ onMounted(fetchData)
 }
 .el-table th .cell {
   padding: 0 1px;
-  line-height: 1.0;
+  line-height: 1.3;
 }
 .el-table td {
   border: 1px solid #dcdfe6 !important;
@@ -461,7 +461,7 @@ onMounted(fetchData)
   border: none !important;
   padding: 0;
   font-family: "宋体", "SimSun", serif;
-  line-height: 1.0;
+  line-height: 1.3;
 }
 .el-table .cell::before {
   display: none;
@@ -483,7 +483,7 @@ onMounted(fetchData)
 }
 .compact-table .el-textarea__inner {
   padding: 0;
-  line-height: 1.0;
+  line-height: 1.3;
   width: 100%;
   display: block;
 }

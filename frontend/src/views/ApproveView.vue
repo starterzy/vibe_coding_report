@@ -25,7 +25,7 @@
 
     <el-table :data="records" stripe border height="calc(100vh - 180px)" class="compact-table">
       <el-table-column prop="task_sequence" label="序号" width="60" align="center" />
-      <el-table-column prop="task_target" label="主要目标任务" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="task_name" label="工作任务" min-width="200" show-overflow-tooltip />
       <el-table-column prop="submitter_name" label="填报人" width="100" align="center" />
       <el-table-column label="状态" width="80" align="center">
         <template #default="{ row }">
