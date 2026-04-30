@@ -4,8 +4,8 @@
     <el-row :gutter="20" style="margin-top: 20px">
       <el-col :span="6">
         <el-card>
-          <template #header>任务总数</template>
-          <div style="font-size: 30px; text-align: center">{{ stats.totalMeasures }}</div>
+          <template #header>主要任务总数</template>
+          <div style="font-size: 30px; text-align: center">{{ stats.totalTasks }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
@@ -56,12 +56,12 @@ const tasks = ref([])
 const records = ref([])
 
 const stats = computed(() => {
-  const totalMeasures = tasks.value.reduce((sum, t) => sum + t.measures.length, 0)
+  const totalTasks = tasks.value.length
   const currentMonth = new Date().toISOString().slice(0, 7)
   const filledThisMonth = records.value.filter(r => r.month === currentMonth && r.status !== 'draft').length
   const pendingApproval = records.value.filter(r => r.status === 'submitted').length
   const approved = records.value.filter(r => r.status === 'approved').length
-  return { totalMeasures, filledThisMonth, pendingApproval, approved }
+  return { totalTasks, filledThisMonth, pendingApproval, approved }
 })
 
 const monthlyStats = computed(() => {
@@ -71,7 +71,7 @@ const monthlyStats = computed(() => {
     const monthRecords = records.value.filter(r => r.month === m)
     return {
       month: m,
-      total: tasks.value.reduce((sum, t) => sum + t.measures.length, 0),
+      total: tasks.value.length,
       draft: monthRecords.filter(r => r.status === 'draft').length,
       submitted: monthRecords.filter(r => r.status === 'submitted').length,
       approved: monthRecords.filter(r => r.status === 'approved').length

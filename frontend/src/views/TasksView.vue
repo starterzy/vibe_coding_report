@@ -1,8 +1,8 @@
 <template>
   <div class="tasks-container">
-    <h2>工作任务列表</h2>
+    <h2 class="compact-title">工作任务列表</h2>
 
-    <el-form inline class="search-form">
+    <el-form inline class="search-form compact-search">
       <el-form-item label="月份">
         <el-date-picker
           v-model="selectedMonth"
@@ -11,19 +11,20 @@
           value-format="YYYY-MM"
           placeholder="选择月份"
           @change="fetchData"
+          style="width: 120px"
         />
       </el-form-item>
       <el-form-item label="序号">
-        <el-input v-model="searchSequence" placeholder="输入序号" clearable @input="handleSearch" style="width: 100px" />
+        <el-input v-model="searchSequence" placeholder="序号" clearable @input="handleSearch" style="width: 70px" />
       </el-form-item>
-      <el-form-item label="目标任务">
-        <el-input v-model="searchTarget" placeholder="搜索目标任务" clearable @input="handleSearch" style="width: 200px" />
+      <el-form-item label="目标">
+        <el-input v-model="searchTarget" placeholder="搜索目标" clearable @input="handleSearch" style="width: 150px" />
       </el-form-item>
       <el-form-item label="责任人">
-        <el-input v-model="searchPersonLiable" placeholder="搜索责任人" clearable @input="handleSearch" style="width: 120px" />
+        <el-input v-model="searchPersonLiable" placeholder="责任人" clearable @input="handleSearch" style="width: 110px" />
       </el-form-item>
-      <el-form-item label="牵头部门">
-        <el-input v-model="searchDepartment" placeholder="搜索部门" clearable @input="handleSearch" style="width: 150px" />
+      <el-form-item label="部门">
+        <el-input v-model="searchDepartment" placeholder="部门" clearable @input="handleSearch" style="width: 120px" />
       </el-form-item>
     </el-form>
 
@@ -34,80 +35,98 @@
       :span-method="spanMethod"
       stripe
       border
-      height="calc(100vh - 220px)"
+      height="calc(100vh - 130px)"
+      class="compact-table"
     >
+      <!-- 列0-6: 按 measure 分行，task 内合并 -->
       <el-table-column prop="sequence" label="序号" width="40" align="center" fixed />
-      <el-table-column prop="taskName" label="重点工作" width="100" fixed />
-      <el-table-column prop="target" label="主要目标任务" min-width="200" fixed />
-      <el-table-column label="牵头领导" min-width="40">
+      <el-table-column prop="taskName" label="重点工作" width="90" fixed />
+      <el-table-column prop="target" label="主要目标任务" min-width="180" fixed />
+      <el-table-column label="牵头领导" min-width="35">
         <template #default="{ row }">
-          <div class="line-break">{{ row.leader }}</div>
+          <div class="line-break compact-cell">{{ row.leader }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="牵头部门" min-width="40">
+      <el-table-column label="牵头部门" min-width="35">
         <template #default="{ row }">
-          <div class="line-break">{{ row.departmentName }}</div>
+          <div class="line-break compact-cell">{{ row.departmentName }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="配合部门" min-width="40">
+      <el-table-column label="配合部门" min-width="35">
         <template #default="{ row }">
-          <div class="line-break">{{ row.partnerDepts }}</div>
+          <div class="line-break compact-cell">{{ row.partnerDepts }}</div>
         </template>
       </el-table-column>
       <el-table-column prop="deadline" label="完成时间" width="40" align="center" />
-      <el-table-column prop="measureContent" label="年度工作措施" min-width="450" />
-      <el-table-column label="责任人" min-width="40">
+
+      <!-- 列7-9: 每 measure 一行 -->
+      <el-table-column prop="measureContent" label="年度工作措施" min-width="400" />
+      <el-table-column label="责任人" min-width="35">
         <template #default="{ row }">
-          <div class="line-break">{{ row.personLiable || '-' }}</div>
+          <div class="line-break compact-cell">{{ row.personLiable || '-' }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="specificMeasures" label="具体举措" min-width="180" />
-      <el-table-column label="本月工作内容" min-width="280">
+      <el-table-column prop="specificMeasures" label="具体举措" min-width="150" />
+
+      <!-- 列10-11: 本月/下月 - 按 task 合并显示 -->
+      <el-table-column label="本月工作内容" min-width="220">
         <template #default="{ row }">
-          <span v-if="authStore.isLeader" class="cell-text">{{ row.currentContent || '-' }}</span>
-          <span v-else-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
-          <el-input
-            v-else
-            v-model="row.currentContent"
-            type="textarea"
-            :rows="2"
-            placeholder="请输入"
-            class="fill-input"
-            @change="row._modified = true"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="下月工作计划" min-width="280">
-        <template #default="{ row }">
-          <span v-if="authStore.isLeader" class="cell-text">{{ row.nextPlan || '-' }}</span>
-          <span v-else-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
-          <el-input
-            v-else
-            v-model="row.nextPlan"
-            type="textarea"
-            :rows="2"
-            placeholder="请输入"
-            class="fill-input"
-            @change="row._modified = true"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="80" align="center">
-        <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-<el-table-column v-if="!authStore.isLeader" label="操作" width="160" align="center">
-        <template #default="{ row }">
-          <template v-if="!row.status || row.status === 'draft'">
-            <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
-            <el-button type="success" size="small" @click="submitRow(row)">提交</el-button>
+          <template v-if="row._isFirstRow">
+            <span v-if="authStore.isLeader" class="cell-text">{{ row.currentContent || '-' }}</span>
+            <span v-else-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.currentContent || '-' }}</span>
+            <el-input
+              v-else
+              v-model="row.currentContent"
+              type="textarea"
+              :rows="1"
+              placeholder="请输入"
+              class="fill-input compact-input"
+              @change="handleContentChange(row)"
+            />
           </template>
-          <template v-else-if="row.status === 'submitted'">
-            <span style="color: #909399; font-size: 12px">待审批</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="下月工作计划" min-width="220">
+        <template #default="{ row }">
+          <template v-if="row._isFirstRow">
+            <span v-if="authStore.isLeader" class="cell-text">{{ row.nextPlan || '-' }}</span>
+            <span v-else-if="row.status && row.status !== 'draft'" class="cell-text">{{ row.nextPlan || '-' }}</span>
+            <el-input
+              v-else
+              v-model="row.nextPlan"
+              type="textarea"
+              :rows="1"
+              placeholder="请输入"
+              class="fill-input compact-input"
+              @change="handleContentChange(row)"
+            />
           </template>
-          <template v-else>
-            <span style="color: #67c23a; font-size: 12px">已审核</span>
+        </template>
+      </el-table-column>
+
+      <!-- 列12: 状态 - 按 task 合并 -->
+      <el-table-column label="状态" width="70" align="center">
+        <template #default="{ row }">
+          <template v-if="row._isFirstRow">
+            <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+          </template>
+        </template>
+      </el-table-column>
+
+      <!-- 列13: 操作 - 按 task 合并 -->
+      <el-table-column v-if="!authStore.isLeader" label="操作" width="140" align="center">
+        <template #default="{ row }">
+          <template v-if="row._isFirstRow">
+            <template v-if="!row.status || row.status === 'draft'">
+              <el-button type="primary" size="small" @click="saveRow(row)">保存</el-button>
+              <el-button type="success" size="small" @click="submitRow(row)">提交</el-button>
+            </template>
+            <template v-else-if="row.status === 'submitted'">
+              <span style="color: #909399; font-size: 12px">待审批</span>
+            </template>
+            <template v-else>
+              <span style="color: #67c23a; font-size: 12px">已审核</span>
+            </template>
           </template>
         </template>
       </el-table-column>
@@ -123,7 +142,7 @@ import { ElMessage } from 'element-plus'
 
 const authStore = useAuthStore()
 const tasks = ref([])
-const records = ref({})
+const records = ref({})  // records[measureId] -> record (旧) / records[taskId] -> record (新)
 const selectedMonth = ref(new Date().toISOString().slice(0, 7))
 const searchSequence = ref('')
 const searchTarget = ref('')
@@ -139,10 +158,11 @@ function getRowKey(row) {
 const allData = computed(() => {
   const result = []
   tasks.value.forEach(task => {
-    task.measures.forEach(measure => {
-      const record = records.value[measure.id]
+    const taskRecord = records.value[task.id]  // 按 task_id 获取记录
+    task.measures.forEach((measure, measureIndex) => {
       result.push({
         sequence: task.sequence,
+        taskId: task.id,
         taskName: task.name,
         target: task.target,
         leader: task.leader || '',
@@ -153,12 +173,14 @@ const allData = computed(() => {
         measureContent: measure.content,
         personLiable: measure.person_liable || '',
         specificMeasures: '',
-        recordId: record?.id,
-        currentContent: record?.current_content || '',
-        nextPlan: record?.next_plan || '',
-        status: record?.status || null,
-        _modified: false,
-        _target: task.target
+        // 填报内容从 task 级别记录获取
+        recordId: taskRecord?.id,
+        currentContent: taskRecord?.current_content || '',
+        nextPlan: taskRecord?.next_plan || '',
+        status: taskRecord?.status || null,
+        // 标记是否为该 task 的第一行（用于合并单元格）
+        _isFirstRow: measureIndex === 0,
+        _modified: false
       })
     })
   })
@@ -166,7 +188,7 @@ const allData = computed(() => {
 })
 
 const displayData = computed(() => {
-  searchVersion.value // force re-compute on search
+  searchVersion.value
   let data = allData.value
   if (searchSequence.value) {
     const seq = parseInt(searchSequence.value)
@@ -189,31 +211,56 @@ const displayData = computed(() => {
   return data
 })
 
+// 用于合并计算的 map
 const spanMap = computed(() => {
   const map = {}
   displayData.value.forEach((row, idx) => {
-    const key = row.sequence
+    const key = row.taskId
     if (map[key] === undefined) {
-      map[key] = { count: 0, rows: [] }
+      map[key] = { count: 0, rows: [], firstRow: null }
     }
     map[key].count++
     map[key].rows.push(idx)
+    if (row._isFirstRow) {
+      map[key].firstRow = idx
+    }
   })
   return map
 })
 
+// spanMethod: 处理列合并
+// columnIndex:
+// 0-6: 按 task 合并（task 内所有 measure 行合并）
+// 7-9: 每 measure 一行（不合并）
+// 10-13: 按 task 合并（第一个 measure 行显示，其余隐藏）
 function spanMethod({ row, column, rowIndex, columnIndex }) {
-  if (columnIndex > 6) return { rowspan: 1, colspan: 1 }
+  const taskInfo = spanMap.value[row.taskId]
+  if (!taskInfo) return { rowspan: 1, colspan: 1 }
 
-  const key = row.sequence
-  const info = spanMap.value[key]
-  if (!info) return
-
-  if (rowIndex === info.rows[0]) {
-    return { rowspan: info.count, colspan: 1 }
-  } else {
-    return { rowspan: 0, colspan: 1 }
+  // 列 0-6 (sequence, taskName, target, leader, department, partner, deadline): 按 task 合并
+  if (columnIndex <= 6) {
+    if (rowIndex === taskInfo.firstRow) {
+      return { rowspan: taskInfo.count, colspan: 1 }
+    } else {
+      return { rowspan: 0, colspan: 1 }
+    }
   }
+
+  // 列 7-9 (measureContent, personLiable, specificMeasures): 每 measure 一行，不合并
+  if (columnIndex >= 7 && columnIndex <= 9) {
+    return { rowspan: 1, colspan: 1 }
+  }
+
+  // 列 10-13 (currentContent, nextPlan, status, actions): 按 task 合并
+  if (columnIndex >= 10) {
+    if (row._isFirstRow) {
+      return { rowspan: taskInfo.count, colspan: 1 }
+    } else {
+      return { rowspan: 0, colspan: 1 }
+    }
+  }
+
+  return { rowspan: 1, colspan: 1 }
 }
 
 function statusType(status) {
@@ -237,19 +284,12 @@ async function fetchTasks() {
 async function fetchRecords() {
   try {
     const res = await reportApi.getRecords({ month: selectedMonth.value })
-    // 先保存现有记录（包含未提交的本地数据）
-    const existingRecords = { ...records.value }
-    records.value = {}
+    // records 按 task_id 存储
+    const newRecords = {}
     res.forEach(r => {
-      records.value[r.measure_id] = r
+      newRecords[r.task_id] = r
     })
-    // 恢复未提交且不在服务器返回中的记录
-    Object.keys(existingRecords).forEach(measureId => {
-      const existing = existingRecords[measureId]
-      if (!records.value[measureId] && existing && !existing.id) {
-        records.value[measureId] = existing
-      }
-    })
+    records.value = newRecords
   } catch (e) {
     console.error(e)
   }
@@ -264,6 +304,16 @@ async function fetchData() {
   }
 }
 
+function handleContentChange(row) {
+  row._modified = true
+  // 同步更新同 task 的其他行（如果有的话）
+  const sameTaskRows = allData.value.filter(r => r.taskId === row.taskId && r.measureId !== row.measureId)
+  sameTaskRows.forEach(r => {
+    r.currentContent = row.currentContent
+    r.nextPlan = row.nextPlan
+  })
+}
+
 async function saveRow(row) {
   try {
     if (row.recordId) {
@@ -273,12 +323,18 @@ async function saveRow(row) {
       })
     } else {
       const res = await reportApi.createRecord({
-        measure_id: row.measureId,
+        task_id: row.taskId,
         month: selectedMonth.value,
         current_content: row.currentContent,
         next_plan: row.nextPlan
       })
       row.recordId = res.id
+      // 同步更新其他行
+      allData.value.forEach(r => {
+        if (r.taskId === row.taskId) {
+          r.recordId = res.id
+        }
+      })
     }
     ElMessage.success('保存成功')
     fetchRecords()
@@ -289,41 +345,28 @@ async function saveRow(row) {
 
 async function submitRow(row) {
   try {
-    // 先保存其他已修改的行
-    const modifiedRows = displayData.value.filter(r => r._modified && r !== row)
-    for (const r of modifiedRows) {
-      if (r.recordId) {
-        await reportApi.updateRecord(r.recordId, {
-          current_content: r.currentContent,
-          next_plan: r.nextPlan
-        })
-      } else {
-        const res = await reportApi.createRecord({
-          measure_id: r.measureId,
-          month: selectedMonth.value,
-          current_content: r.currentContent,
-          next_plan: r.nextPlan
-        })
-        r.recordId = res.id
-      }
-      r._modified = false
-    }
-
+    // 先保存
     if (!row.recordId) {
       const res = await reportApi.createRecord({
-        measure_id: row.measureId,
+        task_id: row.taskId,
         month: selectedMonth.value,
         current_content: row.currentContent,
         next_plan: row.nextPlan
       })
       row.recordId = res.id
+      allData.value.forEach(r => {
+        if (r.taskId === row.taskId) {
+          r.recordId = res.id
+        }
+      })
     } else {
       await reportApi.updateRecord(row.recordId, {
         current_content: row.currentContent,
         next_plan: row.nextPlan
       })
     }
-    row._modified = false
+
+    // 提交
     await reportApi.submitRecord(row.recordId)
     ElMessage.success('提交成功')
     fetchRecords()
@@ -343,40 +386,105 @@ onMounted(fetchData)
 .tasks-container {
   height: 100%;
 }
+.compact-title {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
 .search-form {
-  margin-bottom: 15px;
+  margin-bottom: 4px;
+}
+.search-form .el-form-item {
+  margin-bottom: 0;
+}
+.compact-search .el-input__wrapper,
+.compact-search .el-date-editor {
+  padding: 0 8px;
 }
 .line-break {
   white-space: pre-line;
-  line-height: 1.5;
+  line-height: 1.0;
+}
+.compact-cell {
+  font-family: "宋体", "SimSun", serif;
+  font-size: 12px;
+  line-height: 1.0;
 }
 .cell-text {
   word-break: break-word;
   white-space: normal;
+  font-family: "宋体", "SimSun", serif;
+  font-size: 12px;
+  line-height: 1.0;
 }
 .fill-input {
   width: 100%;
+}
+.compact-input {
+  display: block;
+  width: 100%;
+}
+.compact-input textarea {
+  font-family: "宋体", "SimSun", serif;
+  font-size: 12px;
+  line-height: 1.0;
+  resize: none;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
 }
 </style>
 
 <style>
 .el-table {
   border: 1px solid #dcdfe6;
+  font-family: "宋体", "SimSun", serif;
+  font-size: 12px;
 }
 .el-table th {
   background-color: #f5f7fa !important;
   border: 1px solid #dcdfe6;
+  padding: 0 2px;
+}
+.el-table th .cell {
+  padding: 0 1px;
+  line-height: 1.0;
 }
 .el-table td {
   border: 1px solid #dcdfe6 !important;
   vertical-align: top;
+  padding: 0;
 }
 .el-table .cell {
   word-break: break-word !important;
   white-space: normal !important;
   border: none !important;
+  padding: 0;
+  font-family: "宋体", "SimSun", serif;
+  line-height: 1.0;
+}
+.el-table .cell::before {
+  display: none;
 }
 .el-table--border .el-table__cell {
   border-right: 1px solid #dcdfe6;
+}
+.compact-table .el-input {
+  display: block;
+  width: 100%;
+}
+.compact-table .el-input__wrapper {
+  padding: 0;
+  width: 100%;
+}
+.compact-table .el-textarea {
+  display: block;
+  width: 100%;
+}
+.compact-table .el-textarea__inner {
+  padding: 0;
+  line-height: 1.0;
+  width: 100%;
+  display: block;
 }
 </style>

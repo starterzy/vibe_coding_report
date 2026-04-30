@@ -69,8 +69,9 @@ async def get_records(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """获取填报记录列表，现在按 task 返回（一个 task 一个月只有一条记录）"""
     query = db.query(ReportRecord).options(
-        joinedload(ReportRecord.measure).joinedload(Measure.task)
+        joinedload(ReportRecord.task)
     )
 
     user_role = current_user.roles.value if hasattr(current_user.roles, 'value') else str(current_user.roles)
@@ -92,7 +93,7 @@ async def get_records(
     for r in records:
         result.append(ReportRecordResponse(
             id=r.id,
-            measure_id=r.measure_id,
+            task_id=r.task_id,
             submitter_id=r.submitter_id,
             submitter_name=r.submitter.username,
             month=r.month,
@@ -104,9 +105,9 @@ async def get_records(
             reviewer_id=r.reviewer_id,
             reviewer_name=r.reviewer.username if r.reviewer else None,
             reject_reason=r.reject_reason,
-            measure_content=r.measure.content,
-            task_name=r.measure.task.name,
-            task_sequence=r.measure.task.sequence
+            task_name=r.task.name,
+            task_sequence=r.task.sequence,
+            task_target=r.task.target
         ))
     return result
 
@@ -116,20 +117,21 @@ async def create_record(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    measure = db.query(Measure).filter(Measure.id == record.measure_id).first()
-    if not measure:
-        raise HTTPException(status_code=404, detail="Measure not found")
+    """创建填报记录，现在按 task_id + month 创建（一个 task 一个月只有一条记录）"""
+    task = db.query(Task).filter(Task.id == record.task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
 
-    # 检查是否已存在当月记录
+    # 检查是否已存在当月记录（按 task_id + month 检查）
     existing = db.query(ReportRecord).filter(
-        ReportRecord.measure_id == record.measure_id,
+        ReportRecord.task_id == record.task_id,
         ReportRecord.month == record.month
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Record already exists for this month")
 
     new_record = ReportRecord(
-        measure_id=record.measure_id,
+        task_id=record.task_id,
         submitter_id=current_user.id,
         month=record.month,
         current_content=record.current_content,
@@ -141,7 +143,7 @@ async def create_record(
     db.refresh(new_record)
     return ReportRecordResponse(
         id=new_record.id,
-        measure_id=new_record.measure_id,
+        task_id=new_record.task_id,
         submitter_id=new_record.submitter_id,
         submitter_name=current_user.username,
         month=new_record.month,
@@ -152,9 +154,9 @@ async def create_record(
         reviewed_at=new_record.reviewed_at,
         reviewer_id=new_record.reviewer_id,
         reviewer_name=None,
-        measure_content=measure.content,
-        task_name=measure.task.name,
-        task_sequence=measure.task.sequence
+        reject_reason=None,
+        task_name=task.name,
+        task_sequence=task.sequence
     )
 
 @router.put("/records/{record_id}", response_model=ReportRecordResponse)
@@ -187,7 +189,7 @@ async def update_record(
     db.refresh(record)
     return ReportRecordResponse(
         id=record.id,
-        measure_id=record.measure_id,
+        task_id=record.task_id,
         submitter_id=record.submitter_id,
         submitter_name=record.submitter.username,
         month=record.month,
@@ -198,9 +200,9 @@ async def update_record(
         reviewed_at=record.reviewed_at,
         reviewer_id=record.reviewer_id,
         reviewer_name=record.reviewer.username if record.reviewer else None,
-        measure_content=record.measure.content,
-        task_name=record.measure.task.name,
-        task_sequence=record.measure.task.sequence
+        reject_reason=record.reject_reason,
+        task_name=record.task.name,
+        task_sequence=record.task.sequence
     )
 
 @router.post("/records/{record_id}/submit", response_model=ReportRecordResponse)
@@ -221,7 +223,7 @@ async def submit_record(
     db.refresh(record)
     return ReportRecordResponse(
         id=record.id,
-        measure_id=record.measure_id,
+        task_id=record.task_id,
         submitter_id=record.submitter_id,
         submitter_name=current_user.username,
         month=record.month,
@@ -232,9 +234,9 @@ async def submit_record(
         reviewed_at=record.reviewed_at,
         reviewer_id=record.reviewer_id,
         reviewer_name=None,
-        measure_content=record.measure.content,
-        task_name=record.measure.task.name,
-        task_sequence=record.measure.task.sequence
+        reject_reason=None,
+        task_name=record.task.name,
+        task_sequence=record.task.sequence
     )
 
 def _check_approver_permission(user: User, record: ReportRecord, db: Session) -> None:
@@ -243,8 +245,7 @@ def _check_approver_permission(user: User, record: ReportRecord, db: Session) ->
     if user_role != 'approver':
         return
 
-    task = db.query(Task).filter(Task.id == record.measure.task_id).first()
-    task_sequence = task.sequence
+    task_sequence = record.task.sequence
 
     # 检查该序号是否在审批者的可审批序号列表中
     user_sequences = [seq.sequence for seq in user.approver_sequences]
@@ -282,7 +283,7 @@ async def approve_record(
     db.refresh(record)
     return ReportRecordResponse(
         id=record.id,
-        measure_id=record.measure_id,
+        task_id=record.task_id,
         submitter_id=record.submitter_id,
         submitter_name=record.submitter.username,
         month=record.month,
@@ -294,9 +295,8 @@ async def approve_record(
         reviewer_id=record.reviewer_id,
         reviewer_name=current_user.username,
         reject_reason=record.reject_reason,
-        measure_content=record.measure.content,
-        task_name=record.measure.task.name,
-        task_sequence=record.measure.task.sequence
+        task_name=record.task.name,
+        task_sequence=record.task.sequence
     )
 
 @router.post("/records/{record_id}/reject", response_model=ReportRecordResponse)
@@ -325,7 +325,7 @@ async def reject_record(
     db.refresh(record)
     return ReportRecordResponse(
         id=record.id,
-        measure_id=record.measure_id,
+        task_id=record.task_id,
         submitter_id=record.submitter_id,
         submitter_name=current_user.username,
         month=record.month,
@@ -337,7 +337,6 @@ async def reject_record(
         reviewer_id=record.reviewer_id,
         reviewer_name=current_user.username,
         reject_reason=record.reject_reason,
-        measure_content=record.measure.content,
-        task_name=record.measure.task.name,
-        task_sequence=record.measure.task.sequence
+        task_name=record.task.name,
+        task_sequence=record.task.sequence
     )

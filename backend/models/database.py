@@ -92,6 +92,7 @@ class Task(Base):
     leaders = relationship("TaskLeader", back_populates="task", cascade="all, delete-orphan")
     departments = relationship("TaskDepartment", back_populates="task", cascade="all, delete-orphan")
     partner_departments = relationship("TaskPartnerDepartment", back_populates="task", cascade="all, delete-orphan")
+    report_records = relationship("ReportRecord", back_populates="task", cascade="all, delete-orphan")
 
 class Measure(Base):
     __tablename__ = "measures"
@@ -100,12 +101,12 @@ class Measure(Base):
     content = Column(Text, nullable=False)        # 年度工作措施
     person_liable = Column(String(100))             # 责任人
     task = relationship("Task", back_populates="measures")
-    report_records = relationship("ReportRecord", back_populates="measure")
 
+# ReportRecord 现在与 task_id 关联（一个 task 一个月只有一条记录）
 class ReportRecord(Base):
     __tablename__ = "report_records"
     id = Column(Integer, primary_key=True, index=True)
-    measure_id = Column(Integer, ForeignKey("measures.id"), nullable=False)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)  # 改为 task_id
     submitter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     month = Column(String(7), nullable=False)        # 填报月份 YYYY-MM
     current_content = Column(Text)                 # 本月工作内容
@@ -115,7 +116,7 @@ class ReportRecord(Base):
     reviewed_at = Column(DateTime, nullable=True)
     reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     reject_reason = Column(Text, nullable=True)      # 退回原因
-    measure = relationship("Measure", back_populates="report_records")
+    task = relationship("Task", back_populates="report_records")
     submitter = relationship("User", back_populates="submitted_records", foreign_keys=[submitter_id])
     reviewer = relationship("User", back_populates="reviewed_records", foreign_keys=[reviewer_id])
 

@@ -7,3 +7,5 @@ dist/
 .env
 *.db
 .DS_Store
+*.xlsx
+*.xls

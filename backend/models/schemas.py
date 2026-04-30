@@ -77,9 +77,9 @@ class TaskResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# 填报记录
+# 填报记录（现在与 task_id 关联）
 class ReportRecordBase(BaseModel):
-    measure_id: int
+    task_id: int  # 改为 task_id
     month: str  # YYYY-MM格式
     current_content: Optional[str] = None
     next_plan: Optional[str] = None
@@ -104,9 +104,9 @@ class ReportRecordResponse(ReportRecordBase):
     reviewer_id: Optional[int] = None
     reviewer_name: Optional[str] = None
     reject_reason: Optional[str] = None
-    measure_content: str
     task_name: str
     task_sequence: int
+    task_target: str = ""
     class Config:
         from_attributes = True
 
